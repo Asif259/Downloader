@@ -11,6 +11,14 @@ function createProgressUpdater(taskId) {
   let pendingUpdate = null;
   let updateTimeout = null;
 
+  const flushUpdate = async (dataToUpdate) => {
+    await updateTask(taskId, { ...dataToUpdate, status: "downloading" });
+    lastProgress = dataToUpdate.progress || 0;
+    lastUpdateTime = Date.now();
+    pendingUpdate = null;
+    updateTimeout = null;
+  };
+
   const update = (progressData) => {
     const now = Date.now();
     const progress = progressData.progress || 0;
@@ -24,18 +32,11 @@ function createProgressUpdater(taskId) {
         clearTimeout(updateTimeout);
       }
 
-      updateTimeout = setTimeout(async () => {
-        const dataToUpdate = pendingUpdate || progressData;
-        await updateTask(taskId, { ...dataToUpdate, status: "downloading" });
-        lastProgress = dataToUpdate.progress || 0;
-        lastUpdateTime = Date.now();
-        pendingUpdate = null;
-        updateTimeout = null;
-      }, 100);
+      const dataToUpdate = pendingUpdate || progressData;
 
-      lastProgress = progress;
-      lastUpdateTime = now;
-      pendingUpdate = null;
+      updateTimeout = setTimeout(() => {
+        flushUpdate(dataToUpdate);
+      }, 100);
     } else {
       pendingUpdate = progressData;
     }
