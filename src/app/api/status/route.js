@@ -5,5 +5,8 @@ export const runtime = "nodejs";
 
 export async function GET() {
   const tasks = await listTasks();
-  return NextResponse.json({ tasks });
+  return NextResponse.json(
+    { tasks },
+    { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } },
+  );
 }
