@@ -16,11 +16,12 @@ function normalizePathCandidate(line) {
   }
 
   if (path.isAbsolute(stripped)) {
-    return stripped;
+    return isLikelyMediaFile(stripped) ? stripped : null;
   }
 
   if (stripped.startsWith("./") || stripped.startsWith("../")) {
-    return path.resolve(process.cwd(), stripped);
+    const resolved = path.resolve(process.cwd(), stripped);
+    return isLikelyMediaFile(resolved) ? resolved : null;
   }
 
   if (isLikelyMediaFile(stripped)) {
@@ -46,8 +47,12 @@ async function resolveFinalPath(candidate) {
 }
 
 async function listFilesInDownloadDir() {
-  const entries = await readdir(DOWNLOAD_DIR, { withFileTypes: true });
-  return entries.filter((entry) => entry.isFile()).map((entry) => path.join(DOWNLOAD_DIR, entry.name));
+  try {
+    const entries = await readdir(DOWNLOAD_DIR, { withFileTypes: true });
+    return entries.filter((entry) => entry.isFile()).map((entry) => path.join(DOWNLOAD_DIR, entry.name));
+  } catch {
+    return [];
+  }
 }
 
 async function pickNewest(files) {
@@ -146,6 +151,7 @@ export async function downloadWithProgress({ url, format, onProgress }) {
     const args = [
       "--newline",
       "--no-playlist",
+      "--no-write-info-json",
       "-P",
       DOWNLOAD_DIR,
       "-o",
