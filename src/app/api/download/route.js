@@ -5,16 +5,64 @@ import { createTask, updateTask } from "@/lib/tasks";
 
 export const runtime = "nodejs";
 
+function createProgressUpdater(taskId) {
+  let lastProgress = 0;
+  let lastUpdateTime = 0;
+  let pendingUpdate = null;
+  let updateTimeout = null;
+
+  const update = (progressData) => {
+    const now = Date.now();
+    const progress = progressData.progress || 0;
+    const progressDelta = Math.abs(progress - lastProgress);
+    const timeDelta = now - lastUpdateTime;
+
+    const shouldUpdate = progressDelta >= 5 || timeDelta >= 500 || progress === 100;
+
+    if (shouldUpdate) {
+      if (updateTimeout) {
+        clearTimeout(updateTimeout);
+      }
+
+      updateTimeout = setTimeout(async () => {
+        const dataToUpdate = pendingUpdate || progressData;
+        await updateTask(taskId, { ...dataToUpdate, status: "downloading" });
+        lastProgress = dataToUpdate.progress || 0;
+        lastUpdateTime = Date.now();
+        pendingUpdate = null;
+        updateTimeout = null;
+      }, 100);
+
+      lastProgress = progress;
+      lastUpdateTime = now;
+      pendingUpdate = null;
+    } else {
+      pendingUpdate = progressData;
+    }
+  };
+
+  update.cleanup = () => {
+    if (updateTimeout) {
+      clearTimeout(updateTimeout);
+      updateTimeout = null;
+    }
+  };
+
+  return update;
+}
+
 async function startDownloadTask({ taskId, url, format }) {
+  let cleanup = null;
   try {
     await updateTask(taskId, { status: "downloading", progress: 0, error: null });
+
+    const throttledUpdate = createProgressUpdater(taskId);
+    cleanup = throttledUpdate.cleanup;
 
     const result = await downloadWithProgress({
       url,
       format,
-      onProgress: (progressData) => {
-        void updateTask(taskId, { ...progressData, status: "downloading" });
-      },
+      onProgress: throttledUpdate,
     });
 
     await updateTask(taskId, { status: "completed", progress: 100, filePath: result.filePath });
@@ -23,6 +71,8 @@ async function startDownloadTask({ taskId, url, format }) {
       status: "failed",
       error: error.message || "Download failed",
     });
+  } finally {
+    cleanup?.();
   }
 }
 
