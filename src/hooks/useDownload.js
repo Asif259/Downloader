@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export function useDownloadPolling(active = true, onStatusChange) {
+export function useDownloadPolling(active = true, onStatusChange, wakeSignal = 0) {
   const [tasks, setTasks] = useState([]);
   const prevStatusRef = useRef({});
 
@@ -15,6 +15,8 @@ export function useDownloadPolling(active = true, onStatusChange) {
     let cancelled = false;
 
     const poll = async () => {
+      let shouldContinue = false;
+
       try {
         const response = await fetch("/api/status", { cache: "no-store" });
         const payload = await response.json();
@@ -34,14 +36,19 @@ export function useDownloadPolling(active = true, onStatusChange) {
           const next = {};
           for (const task of incoming) next[task.id] = task.status;
           prevStatusRef.current = next;
+
+          shouldContinue = incoming.some((task) => ["pending", "downloading"].includes(task.status));
         }
       } catch {
         if (!cancelled) {
           setTasks([]);
+          shouldContinue = true;
         }
       }
 
-      timeoutId = window.setTimeout(poll, 1200);
+      if (!cancelled && shouldContinue) {
+        timeoutId = window.setTimeout(poll, 600);
+      }
     };
 
     poll();
@@ -52,7 +59,7 @@ export function useDownloadPolling(active = true, onStatusChange) {
         window.clearTimeout(timeoutId);
       }
     };
-  }, [active, onStatusChange]);
+  }, [active, onStatusChange, wakeSignal]);
 
   return tasks;
 }

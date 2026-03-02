@@ -173,17 +173,16 @@ export async function fetchFormats(url) {
   };
 }
 
-export async function downloadWithProgress({ url, format, onProgress }) {
+export async function downloadWithProgress({ url, format, onProgress, signal }) {
   await mkdir(DOWNLOAD_DIR, { recursive: true });
   const filesBefore = new Set(await listFilesInDownloadDir());
 
   return new Promise((resolve, reject) => {
     const args = [
       "--newline",
+      "--progress",
       "--no-playlist",
       "--no-write-info-json",
-      "--progress-template",
-      "download:__PROGRESS__\t%(progress.downloaded_bytes)s\t%(progress.total_bytes)s\t%(progress.total_bytes_estimate)s\t%(progress._percent_str)s\t%(progress._speed_str)s\t%(progress._eta_str)s",
       "-P",
       DOWNLOAD_DIR,
       "-o",
@@ -199,6 +198,8 @@ export async function downloadWithProgress({ url, format, onProgress }) {
     args.push(url);
 
     const child = spawn("yt-dlp", args, { stdio: ["ignore", "pipe", "pipe"] });
+    let wasAborted = false;
+    let abortTimeout = null;
 
     let finalPath = null;
     let stderr = "";
@@ -243,16 +244,48 @@ export async function downloadWithProgress({ url, format, onProgress }) {
       stderrBuffer = consumeBuffered(stderrBuffer);
     });
 
+    const abortDownload = () => {
+      if (wasAborted) {
+        return;
+      }
+
+      wasAborted = true;
+      child.kill("SIGTERM");
+      abortTimeout = setTimeout(() => {
+        child.kill("SIGKILL");
+      }, 2500);
+    };
+
+    if (signal) {
+      if (signal.aborted) {
+        abortDownload();
+      } else {
+        signal.addEventListener("abort", abortDownload, { once: true });
+      }
+    }
+
     child.on("error", (error) => {
       reject(new Error(`Failed to run yt-dlp: ${error.message}`));
     });
 
     child.on("close", (code) => {
+      if (abortTimeout) {
+        clearTimeout(abortTimeout);
+      }
+      if (signal) {
+        signal.removeEventListener("abort", abortDownload);
+      }
+
       if (stdoutBuffer) {
         inspectLine(stdoutBuffer);
       }
       if (stderrBuffer) {
         inspectLine(stderrBuffer);
+      }
+
+      if (wasAborted) {
+        reject(new Error("Download canceled due to page reload."));
+        return;
       }
 
       if (code !== 0) {

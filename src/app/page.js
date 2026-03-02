@@ -108,10 +108,12 @@ export default function Home() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [formats, setFormats] = useState([]);
   const [selectedFormat, setSelectedFormat] = useState("best");
+  const [pollWakeSignal, setPollWakeSignal] = useState(0);
   const autoDownloadEligibleRef = useRef(new Set());
   const triggeredRef = useRef(new Set());
   const inFlightDownloadsRef = useRef(new Set());
   const analyzeRequestRef = useRef(0);
+  const sessionIdRef = useRef("");
 
   const { items, loading, error: historyError, refresh, clearAll, upsertHistoryItem, syncFromTasks } = useHistory();
 
@@ -127,7 +129,27 @@ export default function Home() {
     refresh();
   }, [refresh]);
 
-  const tasks = useDownloadPolling(true, handleStatusChange);
+  const tasks = useDownloadPolling(true, handleStatusChange, pollWakeSignal);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const key = "unidl.active_session_id";
+    const previousSessionId = window.sessionStorage.getItem(key);
+    const nextSessionId = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    sessionIdRef.current = nextSessionId;
+    window.sessionStorage.setItem(key, nextSessionId);
+
+    if (previousSessionId && previousSessionId !== nextSessionId) {
+      void fetch("/api/download/cancel-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: previousSessionId }),
+      });
+    }
+  }, []);
 
   const extractFilename = useCallback((contentDisposition, fallbackName) => {
     if (!contentDisposition) {
@@ -250,24 +272,19 @@ export default function Home() {
     }
   }, []);
 
-  useEffect(() => {
+  const handleCheckUrl = useCallback(() => {
     const normalized = normalizeUrl(urlInput);
     if (!normalized) {
       analyzeRequestRef.current = 0;
       setBusy(false);
       setPreviewLoading(false);
+      setError("Please enter a valid URL.");
       setMessage("");
-      return undefined;
+      return;
     }
 
-    const timer = window.setTimeout(() => {
-      void analyzeUrl(normalized);
-    }, 450);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [urlInput, analyzeUrl]);
+    void analyzeUrl(normalized);
+  }, [analyzeUrl, urlInput]);
 
   const startSingleDownload = useCallback(async () => {
     setBusy(true);
@@ -281,7 +298,9 @@ export default function Home() {
         title: preview?.title,
         thumbnail: preview?.thumbnail,
         quality: selectedFormat,
+        sessionId: sessionIdRef.current || null,
       });
+      setPollWakeSignal((value) => value + 1);
       if (payload?.taskId) {
         autoDownloadEligibleRef.current.add(payload.taskId);
         upsertHistoryItem({
@@ -309,6 +328,23 @@ export default function Home() {
     }
   }, [preview, refresh, selectedFormat, upsertHistoryItem, urlInput]);
 
+  const cancelDownload = useCallback(async (taskId) => {
+    if (!taskId) {
+      return;
+    }
+
+    try {
+      await postJSON("/api/download/cancel", { taskId });
+      autoDownloadEligibleRef.current.delete(taskId);
+      inFlightDownloadsRef.current.delete(taskId);
+      setPollWakeSignal((value) => value + 1);
+      setMessage("Download canceled.");
+      refresh();
+    } catch (err) {
+      setError(err.message || "Failed to cancel download.");
+    }
+  }, [refresh]);
+
   return (
     <main className="page-shell">
       <div className="page-grid">
@@ -326,6 +362,8 @@ export default function Home() {
         <LinkInput
           value={urlInput}
           onChange={handleUrlChange}
+          onCheck={handleCheckUrl}
+          busy={busy}
         />
 
         <div className="two-col">
@@ -340,7 +378,7 @@ export default function Home() {
           />
         </div>
 
-        <DownloadQueue tasks={activeTasks} />
+        <DownloadQueue tasks={activeTasks} onCancel={cancelDownload} />
 
         <HistoryTable
           items={items}

@@ -1,51 +1,58 @@
 import { NextResponse } from "next/server";
 import { normalizeUrl, detectPlatform } from "@/lib/detector";
 import { downloadWithProgress } from "@/lib/downloader";
-import { createTask, updateTask } from "@/lib/tasks";
+import { clearTaskCanceler, createTask, setTaskCanceler, updateTask } from "@/lib/tasks";
 
 export const runtime = "nodejs";
 
 function createProgressUpdater(taskId) {
-  let lastProgress = 0;
-  let lastUpdateTime = 0;
-  let pendingUpdate = null;
-  let updateTimeout = null;
+  let lastWrittenProgress = 0;
+  let cooldownActive = false;
+  let latestPending = null;
+  let cooldownTimer = null;
+  const COOLDOWN_MS = 300;
 
-  const flushUpdate = async (dataToUpdate) => {
-    await updateTask(taskId, { ...dataToUpdate, status: "downloading" });
-    lastProgress = dataToUpdate.progress || 0;
-    lastUpdateTime = Date.now();
-    pendingUpdate = null;
-    updateTimeout = null;
+  const flush = async (data) => {
+    await updateTask(taskId, { ...data, status: "downloading" });
+    lastWrittenProgress = data.progress || 0;
   };
 
   const update = (progressData) => {
-    const now = Date.now();
     const progress = progressData.progress || 0;
-    const progressDelta = Math.abs(progress - lastProgress);
-    const timeDelta = now - lastUpdateTime;
+    const delta = Math.abs(progress - lastWrittenProgress);
 
-    const shouldUpdate = progressDelta >= 5 || timeDelta >= 500 || progress === 100;
-
-    if (shouldUpdate) {
-      if (updateTimeout) {
-        clearTimeout(updateTimeout);
-      }
-
-      const dataToUpdate = pendingUpdate || progressData;
-
-      updateTimeout = setTimeout(() => {
-        flushUpdate(dataToUpdate);
-      }, 100);
-    } else {
-      pendingUpdate = progressData;
+    if (delta < 2 && progress !== 100) {
+      latestPending = progressData;
+      return;
     }
+
+    if (cooldownActive) {
+      latestPending = progressData;
+      return;
+    }
+
+    void flush(progressData);
+    latestPending = null;
+    cooldownActive = true;
+
+    cooldownTimer = setTimeout(() => {
+      cooldownActive = false;
+      if (latestPending) {
+        const data = latestPending;
+        latestPending = null;
+        update(data);
+      }
+    }, COOLDOWN_MS);
   };
 
   update.cleanup = () => {
-    if (updateTimeout) {
-      clearTimeout(updateTimeout);
-      updateTimeout = null;
+    if (cooldownTimer) {
+      clearTimeout(cooldownTimer);
+      cooldownTimer = null;
+    }
+    if (latestPending) {
+      void flush(latestPending);
+      latestPending = null;
     }
   };
 
@@ -54,8 +61,10 @@ function createProgressUpdater(taskId) {
 
 async function startDownloadTask({ taskId, url, format }) {
   let cleanup = null;
+  const abortController = new AbortController();
   try {
     await updateTask(taskId, { status: "downloading", progress: 0, error: null });
+    setTaskCanceler(taskId, () => abortController.abort());
 
     const throttledUpdate = createProgressUpdater(taskId);
     cleanup = throttledUpdate.cleanup;
@@ -64,16 +73,19 @@ async function startDownloadTask({ taskId, url, format }) {
       url,
       format,
       onProgress: throttledUpdate,
+      signal: abortController.signal,
     });
 
     await updateTask(taskId, { status: "completed", progress: 100, filePath: result.filePath });
   } catch (error) {
+    const canceled = (error?.message || "").toLowerCase().includes("canceled");
     await updateTask(taskId, {
       status: "failed",
-      error: error.message || "Download failed",
+      error: canceled ? "Download canceled due to page reload." : error.message || "Download failed",
     });
   } finally {
     cleanup?.();
+    clearTaskCanceler(taskId);
   }
 }
 
@@ -86,7 +98,11 @@ export async function POST(request) {
       return NextResponse.json({ error: "A valid URL is required." }, { status: 400 });
     }
 
-    const task = await createTask({ url: normalizedUrl, format: body?.format || "best" });
+    const task = await createTask({
+      url: normalizedUrl,
+      format: body?.format || "best",
+      sessionId: typeof body?.sessionId === "string" ? body.sessionId : null,
+    });
 
     startDownloadTask({
       taskId: task.id,

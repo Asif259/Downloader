@@ -1,6 +1,6 @@
 "use client";
 
-export default function DownloadQueue({ tasks }) {
+export default function DownloadQueue({ tasks, onCancel }) {
   return (
     <section className="glass-panel section">
       <h2>Active downloads</h2>
@@ -22,8 +22,13 @@ export default function DownloadQueue({ tasks }) {
             </div>
             <p className="mono">{task.url}</p>
             <p className="muted">
-              {task.speed ? `Speed: ${task.speed}` : ""} {task.eta ? ` ETA: ${task.eta}` : ""}
+              {task.speed ? `Speed: ${task.speed}` : ""} {task.eta ? ` Estimated time: ${task.eta}` : ""}
             </p>
+            <div className="actions">
+              <button className="btn btn-secondary" onClick={() => onCancel?.(task.id)}>
+                Cancel
+              </button>
+            </div>
             {task.error ? <p className="error">{task.error}</p> : null}
           </article>
         ))}
