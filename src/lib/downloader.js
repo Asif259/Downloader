@@ -1,15 +1,39 @@
 import { spawn } from "node:child_process";
-import { access, mkdir, readdir, stat, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
 const DOWNLOAD_DIR = process.env.DOWNLOAD_DIR || path.join(os.homedir(), "Downloads", "DownLink");
 const COOKIE_FILE_PATH = path.join(os.tmpdir(), "downlink-ytdlp-cookies.txt");
+const DECODED_COOKIE_FILE_PATH = path.join(os.tmpdir(), "downlink-ytdlp-cookies-decoded.txt");
 const DEFAULT_COOKIE_FILES = [
   "/etc/secrets/youtube.cookies.txt",
   path.join(process.cwd(), "secrets", "youtube.cookies.txt"),
 ];
 let cookieArgsPromise = null;
+
+function isNetscapeCookieText(text) {
+  return typeof text === "string" && text.includes("Netscape HTTP Cookie File");
+}
+
+function maybeDecodeBase64CookieText(text) {
+  const compact = String(text || "").trim();
+  if (!compact || compact.includes("\t")) {
+    return null;
+  }
+
+  // Try decode only when content looks like base64.
+  if (!/^[A-Za-z0-9+/=\r\n]+$/.test(compact)) {
+    return null;
+  }
+
+  try {
+    const decoded = Buffer.from(compact, "base64").toString("utf8");
+    return isNetscapeCookieText(decoded) ? decoded : null;
+  } catch {
+    return null;
+  }
+}
 
 function isLikelyMediaFile(line) {
   return /\.(mp4|mkv|webm|mov|m4a|mp3|wav|ogg|flac|jpg|jpeg|png|gif)$/i.test(line);
@@ -115,7 +139,16 @@ async function getCookieArgs() {
     for (const filePath of DEFAULT_COOKIE_FILES) {
       try {
         await access(filePath);
-        return ["--cookies", filePath];
+        const content = await readFile(filePath, "utf8");
+        if (isNetscapeCookieText(content)) {
+          return ["--cookies", filePath];
+        }
+
+        const decoded = maybeDecodeBase64CookieText(content);
+        if (decoded) {
+          await writeFile(DECODED_COOKIE_FILE_PATH, decoded, { encoding: "utf8", mode: 0o600 });
+          return ["--cookies", DECODED_COOKIE_FILE_PATH];
+        }
       } catch {
         // try next source
       }
