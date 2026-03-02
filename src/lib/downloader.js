@@ -1,9 +1,15 @@
 import { spawn } from "node:child_process";
-import { access, mkdir, readdir, stat } from "node:fs/promises";
+import { access, mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
 const DOWNLOAD_DIR = process.env.DOWNLOAD_DIR || path.join(os.homedir(), "Downloads", "DownLink");
+const COOKIE_FILE_PATH = path.join(os.tmpdir(), "downlink-ytdlp-cookies.txt");
+const DEFAULT_COOKIE_FILES = [
+  "/etc/secrets/youtube.cookies.txt",
+  path.join(process.cwd(), "secrets", "youtube.cookies.txt"),
+];
+let cookieArgsPromise = null;
 
 function isLikelyMediaFile(line) {
   return /\.(mp4|mkv|webm|mov|m4a|mp3|wav|ogg|flac|jpg|jpeg|png|gif)$/i.test(line);
@@ -100,6 +106,40 @@ function runYtDlp(args) {
   });
 }
 
+async function getCookieArgs() {
+  if (cookieArgsPromise) {
+    return cookieArgsPromise;
+  }
+
+  cookieArgsPromise = (async () => {
+    for (const filePath of DEFAULT_COOKIE_FILES) {
+      try {
+        await access(filePath);
+        return ["--cookies", filePath];
+      } catch {
+        // try next source
+      }
+    }
+
+    const cookieFile = process.env.YTDLP_COOKIES_FILE?.trim();
+    if (cookieFile) {
+      return ["--cookies", cookieFile];
+    }
+
+    const cookieBase64 = process.env.YTDLP_COOKIES_BASE64?.trim();
+    const cookieTextRaw = process.env.YTDLP_COOKIES?.trim();
+    if (!cookieBase64 && !cookieTextRaw) {
+      return [];
+    }
+
+    const cookieText = cookieBase64 ? Buffer.from(cookieBase64, "base64").toString("utf8") : cookieTextRaw;
+    await writeFile(COOKIE_FILE_PATH, cookieText, { encoding: "utf8", mode: 0o600 });
+    return ["--cookies", COOKIE_FILE_PATH];
+  })();
+
+  return cookieArgsPromise;
+}
+
 function parseProgressLine(line) {
   const cleaned = line.replace(/\x1B\[[0-9;]*m/g, "");
   const markerIndex = cleaned.indexOf("__PROGRESS__\t");
@@ -148,7 +188,8 @@ function parseProgressLine(line) {
 }
 
 export async function fetchMetadata(url) {
-  const raw = await runYtDlp(["--dump-single-json", "--no-warnings", "--skip-download", url]);
+  const cookieArgs = await getCookieArgs();
+  const raw = await runYtDlp([...cookieArgs, "--dump-single-json", "--no-warnings", "--skip-download", url]);
   return JSON.parse(raw);
 }
 
@@ -176,9 +217,11 @@ export async function fetchFormats(url) {
 export async function downloadWithProgress({ url, format, onProgress, signal }) {
   await mkdir(DOWNLOAD_DIR, { recursive: true });
   const filesBefore = new Set(await listFilesInDownloadDir());
+  const cookieArgs = await getCookieArgs();
 
   return new Promise((resolve, reject) => {
     const args = [
+      ...cookieArgs,
       "--newline",
       "--progress",
       "--no-playlist",
