@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-const HISTORY_KEY = "unidl.history.v1";
+const HISTORY_KEY = "downlink.history.v1";
 
 function readHistoryFromStorage() {
   if (typeof window === "undefined") {

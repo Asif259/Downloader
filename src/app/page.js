@@ -135,7 +135,7 @@ export default function Home() {
       return;
     }
 
-    const key = "unidl.active_session_id";
+    const key = "downlink.active_session_id";
     const previousSessionId = window.sessionStorage.getItem(key);
     const nextSessionId = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     sessionIdRef.current = nextSessionId;
@@ -179,7 +179,7 @@ export default function Home() {
           if (payload?.error) {
             message = payload.error;
           }
-        } catch {}
+        } catch { }
         throw new Error(message);
       }
 
@@ -381,7 +381,7 @@ export default function Home() {
       <div className="page-grid">
         <header className="header-block">
           <h1>
-            <span className="brand">UniDL</span>
+            <span className="brand">DownLink</span>
           </h1>
           <p className="header-subtitle">
             Universal downloader for YouTube, TikTok, Instagram, X, and more
@@ -392,7 +392,7 @@ export default function Home() {
               <polyline points="7,10 12,15 17,10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            Saves to <code>~/Downloads/UniDL</code>
+            Saves to <code>~/Downloads/DownLink</code>
           </div>
         </header>
 

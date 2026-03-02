@@ -1,5 +1,5 @@
-const TASKS_KEY = "__unidl_tasks_store__";
-const CANCELERS_KEY = "__unidl_task_cancelers__";
+const TASKS_KEY = "__downlink_tasks_store__";
+const CANCELERS_KEY = "__downlink_task_cancelers__";
 
 function getTaskStore() {
   const globalScope = globalThis;
@@ -93,7 +93,7 @@ export async function cancelTasksBySession(sessionId, reason = "Download cancele
     if (cancel) {
       try {
         cancel();
-      } catch {}
+      } catch { }
     }
     await updateTask(task.id, { status: "failed", error: reason });
     cancelers.delete(task.id);
@@ -117,7 +117,7 @@ export async function cancelTaskById(taskId, reason = "Download canceled by user
   if (cancel) {
     try {
       cancel();
-    } catch {}
+    } catch { }
   }
 
   await updateTask(taskId, { status: "failed", error: reason });

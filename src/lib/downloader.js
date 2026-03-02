@@ -3,7 +3,7 @@ import { access, mkdir, readdir, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const DOWNLOAD_DIR = process.env.DOWNLOAD_DIR || path.join(os.homedir(), "Downloads", "UniDL");
+const DOWNLOAD_DIR = process.env.DOWNLOAD_DIR || path.join(os.homedir(), "Downloads", "DownLink");
 
 function isLikelyMediaFile(line) {
   return /\.(mp4|mkv|webm|mov|m4a|mp3|wav|ogg|flac|jpg|jpeg|png|gif)$/i.test(line);
