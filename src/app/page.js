@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BatchPanel from "@/components/BatchPanel";
 import DownloadQueue from "@/components/DownloadQueue";
 import HistoryTable from "@/components/HistoryTable";
@@ -35,9 +35,30 @@ export default function Home() {
   const [preview, setPreview] = useState(null);
   const [formats, setFormats] = useState([]);
   const [selectedFormat, setSelectedFormat] = useState("best");
+  const triggeredRef = useRef(new Set());
 
-  const tasks = useDownloadPolling(true);
   const { items, loading, error: historyError, refresh, clearAll } = useHistory();
+
+  const handleStatusChange = useCallback(() => {
+    refresh();
+  }, [refresh]);
+
+  const tasks = useDownloadPolling(true, handleStatusChange);
+
+  useEffect(() => {
+    for (const task of tasks) {
+      if (task.status === "completed" && !triggeredRef.current.has(task.id)) {
+        triggeredRef.current.add(task.id);
+        const a = document.createElement("a");
+        a.href = `/api/file/${task.id}`;
+        a.download = "";
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    }
+  }, [tasks]);
 
   const activeTasks = useMemo(() => {
     return tasks.filter((task) => ["pending", "downloading"].includes(task.status));
