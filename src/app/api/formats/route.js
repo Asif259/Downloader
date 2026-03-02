@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
+import { applyCors, corsPreflight } from "@/lib/cors";
 import { fetchFormats } from "@/lib/downloader";
 import { normalizeUrl } from "@/lib/detector";
 
 export const runtime = "nodejs";
+
+export function OPTIONS() {
+  return corsPreflight();
+}
 
 export async function POST(request) {
   try {
@@ -15,8 +20,8 @@ export async function POST(request) {
 
     const data = await fetchFormats(normalizedUrl);
 
-    return NextResponse.json(data);
+    return applyCors(NextResponse.json(data));
   } catch (error) {
-    return NextResponse.json({ error: error.message || "Failed to fetch formats." }, { status: 500 });
+    return applyCors(NextResponse.json({ error: error.message || "Failed to fetch formats." }, { status: 500 }));
   }
 }

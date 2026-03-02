@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: downlink-backend
+    env: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /api/status
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DOWNLOAD_DIR
+        value: /tmp/unidl
+      - key: CORS_ALLOW_ORIGIN
+        value: https://down-link.vercel.app

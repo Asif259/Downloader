@@ -1,5 +1,6 @@
 import { createReadStream, stat } from "node:fs";
 import path from "node:path";
+import { applyCors, corsPreflight } from "@/lib/cors";
 import { getTask } from "@/lib/tasks";
 
 export const runtime = "nodejs";
@@ -36,29 +37,33 @@ function toAsciiFilename(name, fallbackExt = "bin") {
   return `${safeBase}.${ext}`;
 }
 
+export function OPTIONS() {
+  return corsPreflight();
+}
+
 export async function GET(_request, context) {
   const { taskId } = await context.params;
   if (!taskId) {
-    return new Response(JSON.stringify({ error: "Task ID is required." }), {
+    return applyCors(new Response(JSON.stringify({ error: "Task ID is required." }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
-    });
+    }));
   }
 
   const task = await getTask(taskId);
 
   if (!task) {
-    return new Response(JSON.stringify({ error: "Task not found." }), {
+    return applyCors(new Response(JSON.stringify({ error: "Task not found." }), {
       status: 404,
       headers: { "Content-Type": "application/json" },
-    });
+    }));
   }
 
   if (task.status !== "completed" || !task.filePath) {
-    return new Response(JSON.stringify({ error: "File not ready." }), {
+    return applyCors(new Response(JSON.stringify({ error: "File not ready." }), {
       status: 409,
       headers: { "Content-Type": "application/json" },
-    });
+    }));
   }
 
   const fileStats = await new Promise((resolve, reject) =>
@@ -66,10 +71,10 @@ export async function GET(_request, context) {
   ).catch(() => null);
 
   if (!fileStats) {
-    return new Response(JSON.stringify({ error: "File not found on disk." }), {
+    return applyCors(new Response(JSON.stringify({ error: "File not found on disk." }), {
       status: 404,
       headers: { "Content-Type": "application/json" },
-    });
+    }));
   }
 
   const filename = path.basename(task.filePath);
@@ -91,7 +96,7 @@ export async function GET(_request, context) {
   const encodedFilename = encodeURIComponent(filename).replace(/'/g, "%27");
   const asciiFilename = toAsciiFilename(filename, ext || "bin");
 
-  return new Response(webStream, {
+  return applyCors(new Response(webStream, {
     status: 200,
     headers: {
       "Content-Type": contentType,
@@ -99,5 +104,5 @@ export async function GET(_request, context) {
       "Content-Disposition": `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodedFilename}`,
       "Cache-Control": "no-store",
     },
-  });
+  }));
 }

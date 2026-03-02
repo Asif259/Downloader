@@ -9,6 +9,7 @@ import QualitySelector from "@/components/QualitySelector";
 import ToastContainer, { toast } from "@/components/Toast";
 import { useDownloadPolling } from "@/hooks/useDownload";
 import { useHistory } from "@/hooks/useHistory";
+import { apiUrl } from "@/lib/apiClient";
 import { normalizeUrl } from "@/lib/detector";
 
 async function postJSON(url, body) {
@@ -142,7 +143,7 @@ export default function Home() {
     window.sessionStorage.setItem(key, nextSessionId);
 
     if (previousSessionId && previousSessionId !== nextSessionId) {
-      void fetch("/api/download/cancel-session", {
+      void fetch(apiUrl("/api/download/cancel-session"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: previousSessionId }),
@@ -170,7 +171,7 @@ export default function Home() {
 
   const downloadTaskFile = useCallback(
     async (taskId) => {
-      const response = await fetch(`/api/file/${taskId}`, { cache: "no-store" });
+      const response = await fetch(apiUrl(`/api/file/${taskId}`), { cache: "no-store" });
 
       if (!response.ok) {
         let message = `Download failed (${response.status}).`;
@@ -253,8 +254,8 @@ export default function Home() {
 
     try {
       const [previewPayload, formatsPayload] = await Promise.all([
-        postJSON("/api/detect", { url: normalized }),
-        postJSON("/api/formats", { url: normalized }),
+        postJSON(apiUrl("/api/detect"), { url: normalized }),
+        postJSON(apiUrl("/api/formats"), { url: normalized }),
       ]);
 
       if (analyzeRequestRef.current !== reqId) {
@@ -307,7 +308,7 @@ export default function Home() {
     setBusy(true);
 
     try {
-      const payload = await postJSON("/api/download", {
+      const payload = await postJSON(apiUrl("/api/download"), {
         url: urlInput,
         format: selectedFormat,
         title: preview?.title,
@@ -357,7 +358,7 @@ export default function Home() {
     }
 
     try {
-      await postJSON("/api/download/cancel", { taskId });
+      await postJSON(apiUrl("/api/download/cancel"), { taskId });
       autoDownloadEligibleRef.current.delete(taskId);
       inFlightDownloadsRef.current.delete(taskId);
       setPollWakeSignal((value) => value + 1);

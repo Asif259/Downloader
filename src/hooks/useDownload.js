@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { apiUrl } from "@/lib/apiClient";
 
 export function useDownloadPolling(active = true, onStatusChange, wakeSignal = 0) {
   const [tasks, setTasks] = useState([]);
@@ -18,7 +19,7 @@ export function useDownloadPolling(active = true, onStatusChange, wakeSignal = 0
       let shouldContinue = false;
 
       try {
-        const response = await fetch("/api/status", { cache: "no-store" });
+        const response = await fetch(apiUrl("/api/status"), { cache: "no-store" });
         const payload = await response.json();
         if (!cancelled) {
           const incoming = payload.tasks || [];

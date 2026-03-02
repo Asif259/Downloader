@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
+import { applyCors, corsPreflight } from "@/lib/cors";
 import { detectPlatform, normalizeUrl } from "@/lib/detector";
 import { fetchMetadata } from "@/lib/downloader";
 
 export const runtime = "nodejs";
+
+export function OPTIONS() {
+  return corsPreflight();
+}
 
 export async function POST(request) {
   try {
@@ -16,7 +21,7 @@ export async function POST(request) {
     const platform = detectPlatform(normalizedUrl);
     const metadata = await fetchMetadata(normalizedUrl);
 
-    return NextResponse.json({
+    return applyCors(NextResponse.json({
       url: normalizedUrl,
       platform,
       title: metadata.title,
@@ -25,8 +30,8 @@ export async function POST(request) {
       uploader: metadata.uploader,
       extractor: metadata.extractor,
       webpageUrl: metadata.webpage_url || normalizedUrl,
-    });
+    }));
   } catch (error) {
-    return NextResponse.json({ error: error.message || "Failed to detect media." }, { status: 500 });
+    return applyCors(NextResponse.json({ error: error.message || "Failed to detect media." }, { status: 500 }));
   }
 }

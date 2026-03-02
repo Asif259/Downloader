@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
+import { applyCors, corsPreflight } from "@/lib/cors";
 import { normalizeUrl, detectPlatform } from "@/lib/detector";
 import { downloadWithProgress } from "@/lib/downloader";
 import { clearTaskCanceler, createTask, setTaskCanceler, updateTask } from "@/lib/tasks";
 
 export const runtime = "nodejs";
+
+export function OPTIONS() {
+  return corsPreflight();
+}
 
 function createProgressUpdater(taskId) {
   let lastWrittenProgress = 0;
@@ -95,7 +100,7 @@ export async function POST(request) {
     const normalizedUrl = normalizeUrl(body?.url);
 
     if (!normalizedUrl) {
-      return NextResponse.json({ error: "A valid URL is required." }, { status: 400 });
+      return applyCors(NextResponse.json({ error: "A valid URL is required." }, { status: 400 }));
     }
 
     const task = await createTask({
@@ -110,12 +115,12 @@ export async function POST(request) {
       format: body?.format || "best",
     });
 
-    return NextResponse.json({
+    return applyCors(NextResponse.json({
       taskId: task.id,
       platform: detectPlatform(normalizedUrl),
       status: "started",
-    });
+    }));
   } catch (error) {
-    return NextResponse.json({ error: error.message || "Failed to start download." }, { status: 500 });
+    return applyCors(NextResponse.json({ error: error.message || "Failed to start download." }, { status: 500 }));
   }
 }
