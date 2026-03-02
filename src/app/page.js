@@ -6,6 +6,7 @@ import HistoryTable from "@/components/HistoryTable";
 import LinkInput from "@/components/LinkInput";
 import PreviewCard from "@/components/PreviewCard";
 import QualitySelector from "@/components/QualitySelector";
+import ToastContainer, { toast } from "@/components/Toast";
 import { useDownloadPolling } from "@/hooks/useDownload";
 import { useHistory } from "@/hooks/useHistory";
 import { normalizeUrl } from "@/lib/detector";
@@ -102,8 +103,6 @@ function pickBasicFormats(allFormats) {
 export default function Home() {
   const [urlInput, setUrlInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [preview, setPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [formats, setFormats] = useState([]);
@@ -213,9 +212,18 @@ export default function Home() {
         void downloadTaskFile(task.id)
           .then(() => {
             triggeredRef.current.add(task.id);
+            toast({
+              type: "success",
+              title: "Download Complete",
+              message: "File has been saved to your downloads folder.",
+            });
           })
           .catch((err) => {
-            setError(err.message || "Failed to download file.");
+            toast({
+              type: "error",
+              title: "Download Failed",
+              message: err.message || "Failed to download file.",
+            });
           })
           .finally(() => {
             inFlightDownloadsRef.current.delete(task.id);
@@ -242,8 +250,6 @@ export default function Home() {
     analyzeRequestRef.current = reqId;
     setBusy(true);
     setPreviewLoading(true);
-    setError("");
-    setMessage("");
 
     try {
       const [previewPayload, formatsPayload] = await Promise.all([
@@ -259,10 +265,18 @@ export default function Home() {
       setPreview(previewPayload);
       setFormats(basicFormats);
       setSelectedFormat("best");
-      setMessage(`Preview ready. Loaded ${basicFormats.length} basic format options.`);
+      toast({
+        type: "success",
+        title: "Preview Loaded",
+        message: `Found ${basicFormats.length} format options for download.`,
+      });
     } catch (err) {
       if (analyzeRequestRef.current === reqId) {
-        setError(err.message);
+        toast({
+          type: "error",
+          title: "Failed to Load Preview",
+          message: err.message,
+        });
       }
     } finally {
       if (analyzeRequestRef.current === reqId) {
@@ -278,8 +292,11 @@ export default function Home() {
       analyzeRequestRef.current = 0;
       setBusy(false);
       setPreviewLoading(false);
-      setError("Please enter a valid URL.");
-      setMessage("");
+      toast({
+        type: "warning",
+        title: "Invalid URL",
+        message: "Please enter a valid URL to check.",
+      });
       return;
     }
 
@@ -288,8 +305,6 @@ export default function Home() {
 
   const startSingleDownload = useCallback(async () => {
     setBusy(true);
-    setError("");
-    setMessage("");
 
     try {
       const payload = await postJSON("/api/download", {
@@ -319,10 +334,18 @@ export default function Home() {
           error: null,
         });
       }
-      setMessage("Download started.");
+      toast({
+        type: "success",
+        title: "Download Started",
+        message: "Your download has been added to the queue.",
+      });
       refresh();
     } catch (err) {
-      setError(err.message);
+      toast({
+        type: "error",
+        title: "Download Failed",
+        message: err.message,
+      });
     } finally {
       setBusy(false);
     }
@@ -338,10 +361,18 @@ export default function Home() {
       autoDownloadEligibleRef.current.delete(taskId);
       inFlightDownloadsRef.current.delete(taskId);
       setPollWakeSignal((value) => value + 1);
-      setMessage("Download canceled.");
+      toast({
+        type: "success",
+        title: "Download Canceled",
+        message: "The download has been canceled.",
+      });
       refresh();
     } catch (err) {
-      setError(err.message || "Failed to cancel download.");
+      toast({
+        type: "error",
+        title: "Cancel Failed",
+        message: err.message || "Failed to cancel download.",
+      });
     }
   }, [refresh]);
 
@@ -350,13 +381,19 @@ export default function Home() {
       <div className="page-grid">
         <header className="header-block">
           <h1>
-            <span className="text-gradient">UniDL</span> Universal Link Downloader
+            <span className="brand">UniDL</span>
           </h1>
-          <p>
-            Next.js full-stack app with yt-dlp API routes, smart format selection, queue tracking, and browser-stored
-            history.
+          <p className="header-subtitle">
+            Universal downloader for YouTube, TikTok, Instagram, X, and more
           </p>
-          <p className="muted">Saved files location: <code>~/Downloads/UniDL</code></p>
+          <div className="header-info">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="7,10 12,15 17,10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Saves to <code>~/Downloads/UniDL</code>
+          </div>
         </header>
 
         <LinkInput
@@ -387,10 +424,9 @@ export default function Home() {
           onRefresh={refresh}
           onClear={clearAll}
         />
-
-        {message ? <p className="message">{message}</p> : null}
-        {error ? <p className="error">{error}</p> : null}
       </div>
+
+      <ToastContainer />
     </main>
   );
 }
