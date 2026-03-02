@@ -1,6 +1,6 @@
 "use client";
 
-export default function LinkInput({ value, onChange, onDetect, onLoadFormats, busy }) {
+export default function LinkInput({ value, onChange }) {
   return (
     <section className="glass-panel section">
       <label htmlFor="source-url" className="label">
@@ -14,14 +14,6 @@ export default function LinkInput({ value, onChange, onDetect, onLoadFormats, bu
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
-      <div className="actions">
-        <button className="btn btn-secondary" onClick={onDetect} disabled={busy || !value.trim()}>
-          Auto-detect
-        </button>
-        <button className="btn btn-primary" onClick={onLoadFormats} disabled={busy || !value.trim()}>
-          Load formats
-        </button>
-      </div>
     </section>
   );
 }

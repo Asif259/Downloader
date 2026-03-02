@@ -11,11 +11,24 @@ function formatDuration(seconds) {
   return `${mins}:${String(secs).padStart(2, "0")}`;
 }
 
-export default function PreviewCard({ media }) {
+export default function PreviewCard({ media, loading = false }) {
+  if (loading) {
+    return (
+      <section className="glass-panel section preview-card preview-loading">
+        <div className="thumb-skeleton shimmer" />
+        <div className="preview-lines">
+          <div className="line-skeleton shimmer line-lg" />
+          <div className="line-skeleton shimmer" />
+          <div className="line-skeleton shimmer line-sm" />
+        </div>
+      </section>
+    );
+  }
+
   if (!media) {
     return (
       <section className="glass-panel section empty-card">
-        <p>No preview yet. Detect a URL to load metadata.</p>
+        <p>No preview yet. Paste a URL to auto-load metadata.</p>
       </section>
     );
   }

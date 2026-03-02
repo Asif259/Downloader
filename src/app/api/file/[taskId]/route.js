@@ -19,8 +19,32 @@ const MIME = {
   png: "image/png",
 };
 
-export async function GET(_request, { params }) {
-  const { taskId } = params;
+function toAsciiFilename(name, fallbackExt = "bin") {
+  const dotIndex = name.lastIndexOf(".");
+  const ext = dotIndex > 0 ? name.slice(dotIndex + 1) : fallbackExt;
+  const base = dotIndex > 0 ? name.slice(0, dotIndex) : name;
+
+  const normalized = base
+    .normalize("NFKD")
+    .replace(/[^\x20-\x7E]/g, "")
+    .replace(/["\\]/g, "")
+    .replace(/[\/:*?<>|]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const safeBase = normalized || "download";
+  return `${safeBase}.${ext}`;
+}
+
+export async function GET(_request, context) {
+  const { taskId } = await context.params;
+  if (!taskId) {
+    return new Response(JSON.stringify({ error: "Task ID is required." }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const task = await getTask(taskId);
 
   if (!task) {
@@ -65,13 +89,14 @@ export async function GET(_request, { params }) {
   });
 
   const encodedFilename = encodeURIComponent(filename).replace(/'/g, "%27");
+  const asciiFilename = toAsciiFilename(filename, ext || "bin");
 
   return new Response(webStream, {
     status: 200,
     headers: {
       "Content-Type": contentType,
       "Content-Length": String(fileStats.size),
-      "Content-Disposition": `attachment; filename="${filename}"; filename*=UTF-8''${encodedFilename}`,
+      "Content-Disposition": `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodedFilename}`,
       "Cache-Control": "no-store",
     },
   });

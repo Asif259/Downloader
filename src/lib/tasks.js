@@ -1,42 +1,15 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
+const TASKS_KEY = "__unidl_tasks_store__";
 
-const STORE_FILE = path.join(process.cwd(), "downloads", "tasks.json");
-let writeQueue = Promise.resolve();
-
-async function ensureStore() {
-  await mkdir(path.dirname(STORE_FILE), { recursive: true });
-
-  try {
-    await readFile(STORE_FILE, "utf8");
-  } catch {
-    await writeFile(STORE_FILE, "[]", "utf8");
+function getTaskStore() {
+  const globalScope = globalThis;
+  if (!globalScope[TASKS_KEY]) {
+    globalScope[TASKS_KEY] = new Map();
   }
-}
-
-async function readStore() {
-  await ensureStore();
-  const raw = await readFile(STORE_FILE, "utf8");
-
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function queueWrite(mutator) {
-  writeQueue = writeQueue.then(async () => {
-    const items = await readStore();
-    const nextItems = await mutator(items);
-    await writeFile(STORE_FILE, JSON.stringify(nextItems, null, 2), "utf8");
-  });
-
-  return writeQueue;
+  return globalScope[TASKS_KEY];
 }
 
 export async function createTask({ url, format }) {
+  const tasks = getTaskStore();
   const task = {
     id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     url,
@@ -51,41 +24,34 @@ export async function createTask({ url, format }) {
     updatedAt: new Date().toISOString(),
   };
 
-  await queueWrite(async (items) => [task, ...items]);
+  tasks.set(task.id, task);
   return task;
 }
 
 export async function updateTask(taskId, patch) {
-  let updated = null;
+  const tasks = getTaskStore();
+  const existing = tasks.get(taskId);
+  if (!existing) {
+    return null;
+  }
 
-  await queueWrite(async (items) => {
-    const next = items.map((task) => {
-      if (task.id !== taskId) {
-        return task;
-      }
-
-      updated = {
-        ...task,
-        ...patch,
-        updatedAt: new Date().toISOString(),
-      };
-
-      return updated;
-    });
-
-    return next;
-  });
-
+  const updated = {
+    ...existing,
+    ...patch,
+    updatedAt: new Date().toISOString(),
+  };
+  tasks.set(taskId, updated);
   return updated;
 }
 
 export async function getTask(taskId) {
-  const items = await readStore();
-  return items.find((task) => task.id === taskId) || null;
+  const tasks = getTaskStore();
+  return tasks.get(taskId) || null;
 }
 
 export async function listTasks() {
-  const items = await readStore();
+  const tasks = getTaskStore();
+  const items = Array.from(tasks.values());
   return items.sort((a, b) => {
     return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
   });

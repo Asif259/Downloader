@@ -39,14 +39,3 @@ export function detectPlatform(url) {
 
   return "unknown";
 }
-
-export function splitUrls(input) {
-  if (typeof input !== "string") {
-    return [];
-  }
-
-  return input
-    .split(/[\n,]+/)
-    .map((item) => normalizeUrl(item))
-    .filter(Boolean);
-}

@@ -10,10 +10,15 @@ export default function DownloadQueue({ tasks }) {
           <article className="queue-item" key={task.id}>
             <header>
               <strong>{task.status.toUpperCase()}</strong>
-              <span>{Math.round(task.progress || 0)}%</span>
+              <span>{Math.round(Number(task.progress) || 0)}%</span>
             </header>
-            <div className="progress-track">
-              <span className="progress-fill" style={{ width: `${Math.max(0, Math.min(100, task.progress || 0))}%` }} />
+            <div className="progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(Number(task.progress) || 0)}>
+              <span
+                className={`progress-fill ${
+                  task.status === "downloading" && (Number(task.progress) || 0) <= 0 ? "progress-fill-indeterminate" : ""
+                }`}
+                style={{ width: `${Math.max(0, Math.min(100, Number(task.progress) || 0))}%` }}
+              />
             </div>
             <p className="mono">{task.url}</p>
             <p className="muted">

@@ -102,6 +102,36 @@ function runYtDlp(args) {
 
 function parseProgressLine(line) {
   const cleaned = line.replace(/\x1B\[[0-9;]*m/g, "");
+  const markerIndex = cleaned.indexOf("__PROGRESS__\t");
+  if (markerIndex >= 0) {
+    const payload = cleaned.slice(markerIndex);
+    const [, downloadedRaw, totalRaw, estimatedRaw, percentRaw, speedRaw, etaRaw] = payload.split("\t");
+    const downloaded = Number(downloadedRaw);
+    const total = Number(totalRaw);
+    const estimated = Number(estimatedRaw);
+    const knownTotal = Number.isFinite(total) && total > 0 ? total : Number.isFinite(estimated) ? estimated : 0;
+
+    let progress = null;
+    if (knownTotal > 0 && Number.isFinite(downloaded)) {
+      progress = (downloaded / knownTotal) * 100;
+    } else {
+      const percentMatch = (percentRaw || "").match(/(\d{1,3}(?:\.\d+)?)/);
+      if (percentMatch) {
+        progress = Number(percentMatch[1]);
+      }
+    }
+
+    if (progress === null || Number.isNaN(progress)) {
+      return null;
+    }
+
+    return {
+      progress: Math.max(0, Math.min(100, progress)),
+      speed: speedRaw && speedRaw !== "NA" ? speedRaw.trim() : null,
+      eta: etaRaw && etaRaw !== "NA" ? etaRaw.trim() : null,
+    };
+  }
+
   const progressMatch = cleaned.match(/\[download\]\s+(\d{1,3}(?:\.\d+)?)%/i);
   if (!progressMatch) {
     return null;
@@ -152,6 +182,8 @@ export async function downloadWithProgress({ url, format, onProgress }) {
       "--newline",
       "--no-playlist",
       "--no-write-info-json",
+      "--progress-template",
+      "download:__PROGRESS__\t%(progress.downloaded_bytes)s\t%(progress.total_bytes)s\t%(progress.total_bytes_estimate)s\t%(progress._percent_str)s\t%(progress._speed_str)s\t%(progress._eta_str)s",
       "-P",
       DOWNLOAD_DIR,
       "-o",
@@ -170,28 +202,45 @@ export async function downloadWithProgress({ url, format, onProgress }) {
 
     let finalPath = null;
     let stderr = "";
+    let stdoutBuffer = "";
+    let stderrBuffer = "";
 
-    const inspectChunk = (chunk) => {
-      const text = chunk.toString();
-      const lines = text.split(/\r|\n/).map((line) => line.trim()).filter(Boolean);
+    const inspectLine = (line) => {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        return;
+      }
 
-      for (const line of lines) {
-        const progressUpdate = parseProgressLine(line);
-        if (progressUpdate) {
-          onProgress?.(progressUpdate);
-        }
+      const progressUpdate = parseProgressLine(trimmed);
+      if (progressUpdate) {
+        onProgress?.(progressUpdate);
+      }
 
-        const maybePath = normalizePathCandidate(line);
-        if (maybePath) {
-          finalPath = maybePath;
-        }
+      const maybePath = normalizePathCandidate(trimmed);
+      if (maybePath) {
+        finalPath = maybePath;
       }
     };
 
-    child.stdout.on("data", inspectChunk);
+    const consumeBuffered = (buffer) => {
+      const normalized = buffer.replace(/\r/g, "\n");
+      const lines = normalized.split("\n");
+      const remainder = lines.pop() || "";
+      for (const line of lines) {
+        inspectLine(line);
+      }
+      return remainder;
+    };
+
+    child.stdout.on("data", (chunk) => {
+      stdoutBuffer += chunk.toString();
+      stdoutBuffer = consumeBuffered(stdoutBuffer);
+    });
     child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString();
-      inspectChunk(chunk);
+      const text = chunk.toString();
+      stderr += text;
+      stderrBuffer += text;
+      stderrBuffer = consumeBuffered(stderrBuffer);
     });
 
     child.on("error", (error) => {
@@ -199,6 +248,13 @@ export async function downloadWithProgress({ url, format, onProgress }) {
     });
 
     child.on("close", (code) => {
+      if (stdoutBuffer) {
+        inspectLine(stdoutBuffer);
+      }
+      if (stderrBuffer) {
+        inspectLine(stderrBuffer);
+      }
+
       if (code !== 0) {
         reject(new Error(stderr.trim() || "Download failed"));
         return;
