@@ -74,12 +74,35 @@ async function startDownloadTask({ taskId, url, format }) {
     const throttledUpdate = createProgressUpdater(taskId);
     cleanup = throttledUpdate.cleanup;
 
-    const result = await downloadWithProgress({
-      url,
-      format,
-      onProgress: throttledUpdate,
-      signal: abortController.signal,
-    });
+    let result;
+    try {
+      result = await downloadWithProgress({
+        url,
+        format,
+        onProgress: throttledUpdate,
+        signal: abortController.signal,
+      });
+    } catch (error) {
+      const message = String(error?.message || "");
+      const canRetryWithBest =
+        !!format &&
+        format !== "best" &&
+        (message.includes("Requested format is not available") ||
+          message.includes("requested format") ||
+          message.includes("not available"));
+
+      if (!canRetryWithBest) {
+        throw error;
+      }
+
+      // Source can change between format listing and download start.
+      result = await downloadWithProgress({
+        url,
+        format: "best",
+        onProgress: throttledUpdate,
+        signal: abortController.signal,
+      });
+    }
 
     await updateTask(taskId, { status: "completed", progress: 100, filePath: result.filePath });
   } catch (error) {
