@@ -4,5 +4,6 @@ import { listTasks } from "@/lib/tasks";
 export const runtime = "nodejs";
 
 export async function GET() {
-  return NextResponse.json({ tasks: listTasks() });
+  const tasks = await listTasks();
+  return NextResponse.json({ tasks });
 }

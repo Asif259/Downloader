@@ -23,6 +23,7 @@ export default function HistoryTable({ items, loading, error, onRefresh, onClear
               <th>Title</th>
               <th>Platform</th>
               <th>Status</th>
+              <th>File</th>
               <th>Created</th>
             </tr>
           </thead>
@@ -32,12 +33,13 @@ export default function HistoryTable({ items, loading, error, onRefresh, onClear
                 <td>{item.title || item.url}</td>
                 <td>{item.platform}</td>
                 <td>{item.status}</td>
+                <td className="mono">{item.filePath || "-"}</td>
                 <td>{new Date(item.createdAt).toLocaleString()}</td>
               </tr>
             ))}
             {items.length === 0 ? (
               <tr>
-                <td colSpan={4} className="muted">
+                <td colSpan={5} className="muted">
                   No download history yet.
                 </td>
               </tr>

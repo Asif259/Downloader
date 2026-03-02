@@ -1,8 +1,69 @@
 import { spawn } from "node:child_process";
-import { mkdir } from "node:fs/promises";
+import { access, mkdir, readdir, stat } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 
-const DOWNLOAD_DIR = path.join(process.cwd(), "downloads");
+const DOWNLOAD_DIR = process.env.DOWNLOAD_DIR || path.join(os.homedir(), "Downloads", "UniDL");
+
+function isLikelyMediaFile(line) {
+  return /\.(mp4|mkv|webm|mov|m4a|mp3|wav|ogg|flac|jpg|jpeg|png|gif)$/i.test(line);
+}
+
+function normalizePathCandidate(line) {
+  const stripped = line.replace(/^['"]|['"]$/g, "").trim();
+  if (!stripped || stripped.startsWith("[")) {
+    return null;
+  }
+
+  if (path.isAbsolute(stripped)) {
+    return stripped;
+  }
+
+  if (stripped.startsWith("./") || stripped.startsWith("../")) {
+    return path.resolve(process.cwd(), stripped);
+  }
+
+  if (isLikelyMediaFile(stripped)) {
+    return path.join(DOWNLOAD_DIR, stripped);
+  }
+
+  return null;
+}
+
+async function resolveFinalPath(candidate) {
+  if (candidate) {
+    try {
+      await access(candidate);
+      return candidate;
+    } catch {
+      // fall through to directory scan
+    }
+  }
+
+  const files = await listFilesInDownloadDir();
+
+  return pickNewest(files);
+}
+
+async function listFilesInDownloadDir() {
+  const entries = await readdir(DOWNLOAD_DIR, { withFileTypes: true });
+  return entries.filter((entry) => entry.isFile()).map((entry) => path.join(DOWNLOAD_DIR, entry.name));
+}
+
+async function pickNewest(files) {
+  if (files.length === 0) {
+    return null;
+  }
+  const stats = await Promise.all(
+    files.map(async (filePath) => {
+      const file = await stat(filePath);
+      return { filePath, mtime: file.mtimeMs };
+    }),
+  );
+
+  stats.sort((a, b) => b.mtime - a.mtime);
+  return stats[0]?.filePath || null;
+}
 
 function runYtDlp(args) {
   return new Promise((resolve, reject) => {
@@ -35,17 +96,18 @@ function runYtDlp(args) {
 }
 
 function parseProgressLine(line) {
-  const progressMatch = line.match(/\[download\]\s+(\d{1,3}(?:\.\d+)?)%/i);
+  const cleaned = line.replace(/\x1B\[[0-9;]*m/g, "");
+  const progressMatch = cleaned.match(/\[download\]\s+(\d{1,3}(?:\.\d+)?)%/i);
   if (!progressMatch) {
     return null;
   }
 
-  const speedMatch = line.match(/at\s+([^\s]+(?:\s*\/s)?)/i);
-  const etaMatch = line.match(/ETA\s+([^\s]+)/i);
+  const speedMatch = cleaned.match(/at\s+(.+?)\s+ETA/i) || cleaned.match(/at\s+(.+)$/i);
+  const etaMatch = cleaned.match(/ETA\s+([^\s]+)/i);
 
   return {
     progress: Number(progressMatch[1]),
-    speed: speedMatch?.[1] || null,
+    speed: speedMatch?.[1]?.trim() || null,
     eta: etaMatch?.[1] || null,
   };
 }
@@ -78,6 +140,7 @@ export async function fetchFormats(url) {
 
 export async function downloadWithProgress({ url, format, onProgress }) {
   await mkdir(DOWNLOAD_DIR, { recursive: true });
+  const filesBefore = new Set(await listFilesInDownloadDir());
 
   return new Promise((resolve, reject) => {
     const args = [
@@ -104,7 +167,7 @@ export async function downloadWithProgress({ url, format, onProgress }) {
 
     const inspectChunk = (chunk) => {
       const text = chunk.toString();
-      const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      const lines = text.split(/\r|\n/).map((line) => line.trim()).filter(Boolean);
 
       for (const line of lines) {
         const progressUpdate = parseProgressLine(line);
@@ -112,8 +175,9 @@ export async function downloadWithProgress({ url, format, onProgress }) {
           onProgress?.(progressUpdate);
         }
 
-        if (line.startsWith("/") || line.startsWith("./") || line.startsWith(DOWNLOAD_DIR)) {
-          finalPath = line;
+        const maybePath = normalizePathCandidate(line);
+        if (maybePath) {
+          finalPath = maybePath;
         }
       }
     };
@@ -134,7 +198,30 @@ export async function downloadWithProgress({ url, format, onProgress }) {
         return;
       }
 
-      resolve({ filePath: finalPath });
+      resolveFinalPath(finalPath)
+        .then((verifiedPath) => {
+          if (verifiedPath) {
+            resolve({ filePath: verifiedPath, downloadDir: DOWNLOAD_DIR });
+            return;
+          }
+
+          listFilesInDownloadDir()
+            .then((afterFiles) => afterFiles.filter((file) => !filesBefore.has(file)))
+            .then((newFiles) => pickNewest(newFiles))
+            .then((newestNewFile) => {
+              if (!newestNewFile) {
+                reject(new Error("Download finished but file was not found on disk."));
+                return;
+              }
+              resolve({ filePath: newestNewFile, downloadDir: DOWNLOAD_DIR });
+            })
+            .catch((error) => {
+              reject(new Error(error.message || "Failed to verify downloaded file."));
+            });
+        })
+        .catch((error) => {
+          reject(new Error(error.message || "Failed to verify downloaded file."));
+        });
     });
   });
 }

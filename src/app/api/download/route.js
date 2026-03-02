@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 
 async function startDownloadTask({ taskId, historyId, url, format }) {
   try {
-    updateTask(taskId, { status: "downloading", progress: 0, error: null });
+    await updateTask(taskId, { status: "downloading", progress: 0, error: null });
 
     await updateHistoryRecord(historyId, { status: "downloading" });
 
@@ -16,24 +16,25 @@ async function startDownloadTask({ taskId, historyId, url, format }) {
       url,
       format,
       onProgress: (progressData) => {
-        updateTask(taskId, { ...progressData, status: "downloading" });
+        void updateTask(taskId, { ...progressData, status: "downloading" });
       },
     });
 
-    updateTask(taskId, { status: "completed", progress: 100, filePath: result.filePath });
+    await updateTask(taskId, { status: "completed", progress: 100, filePath: result.filePath });
 
     await updateHistoryRecord(historyId, {
       status: "completed",
       format: format || "best",
       filePath: result.filePath,
+      downloadDir: result.downloadDir,
     });
   } catch (error) {
-    updateTask(taskId, {
+    await updateTask(taskId, {
       status: "failed",
       error: error.message || "Download failed",
     });
 
-    await updateHistoryRecord(historyId, { status: "failed" });
+    await updateHistoryRecord(historyId, { status: "failed", error: error.message || "Download failed" });
   }
 }
 
@@ -46,7 +47,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "A valid URL is required." }, { status: 400 });
     }
 
-    const task = createTask({ url: normalizedUrl, format: body?.format || "best" });
+    const task = await createTask({ url: normalizedUrl, format: body?.format || "best" });
 
     const historyRecord = await createHistoryRecord({
       url: normalizedUrl,

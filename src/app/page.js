@@ -143,6 +143,7 @@ export default function Home() {
             Option A implementation: Next.js full-stack app with yt-dlp API routes, format selection, queue tracking,
             and Prisma/SQLite history.
           </p>
+          <p className="muted">Saved files location: <code>~/Downloads/UniDL</code></p>
         </header>
 
         <LinkInput

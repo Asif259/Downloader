@@ -1,26 +1,44 @@
-const taskStore = globalThis.__downloadTaskStore || new Map();
-const listenerStore = globalThis.__downloadTaskListeners || new Map();
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
 
-if (!globalThis.__downloadTaskStore) {
-  globalThis.__downloadTaskStore = taskStore;
-}
+const STORE_FILE = path.join(process.cwd(), "downloads", "tasks.json");
+let writeQueue = Promise.resolve();
 
-if (!globalThis.__downloadTaskListeners) {
-  globalThis.__downloadTaskListeners = listenerStore;
-}
+async function ensureStore() {
+  await mkdir(path.dirname(STORE_FILE), { recursive: true });
 
-function emit(taskId) {
-  const listeners = listenerStore.get(taskId) || [];
-  const task = taskStore.get(taskId);
-  for (const listener of listeners) {
-    listener(task);
+  try {
+    await readFile(STORE_FILE, "utf8");
+  } catch {
+    await writeFile(STORE_FILE, "[]", "utf8");
   }
 }
 
-export function createTask({ url, format }) {
-  const taskId = `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+async function readStore() {
+  await ensureStore();
+  const raw = await readFile(STORE_FILE, "utf8");
+
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function queueWrite(mutator) {
+  writeQueue = writeQueue.then(async () => {
+    const items = await readStore();
+    const nextItems = await mutator(items);
+    await writeFile(STORE_FILE, JSON.stringify(nextItems, null, 2), "utf8");
+  });
+
+  return writeQueue;
+}
+
+export async function createTask({ url, format }) {
   const task = {
-    id: taskId,
+    id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     url,
     format: format || "best",
     status: "pending",
@@ -33,48 +51,42 @@ export function createTask({ url, format }) {
     updatedAt: new Date().toISOString(),
   };
 
-  taskStore.set(taskId, task);
-  emit(taskId);
-
+  await queueWrite(async (items) => [task, ...items]);
   return task;
 }
 
-export function updateTask(taskId, patch) {
-  const task = taskStore.get(taskId);
-  if (!task) {
-    return null;
-  }
+export async function updateTask(taskId, patch) {
+  let updated = null;
 
-  const updated = {
-    ...task,
-    ...patch,
-    updatedAt: new Date().toISOString(),
-  };
+  await queueWrite(async (items) => {
+    const next = items.map((task) => {
+      if (task.id !== taskId) {
+        return task;
+      }
 
-  taskStore.set(taskId, updated);
-  emit(taskId);
+      updated = {
+        ...task,
+        ...patch,
+        updatedAt: new Date().toISOString(),
+      };
+
+      return updated;
+    });
+
+    return next;
+  });
 
   return updated;
 }
 
-export function getTask(taskId) {
-  return taskStore.get(taskId) || null;
+export async function getTask(taskId) {
+  const items = await readStore();
+  return items.find((task) => task.id === taskId) || null;
 }
 
-export function listTasks() {
-  return [...taskStore.values()].sort((a, b) => {
+export async function listTasks() {
+  const items = await readStore();
+  return items.sort((a, b) => {
     return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
   });
-}
-
-export function subscribeTask(taskId, callback) {
-  const current = listenerStore.get(taskId) || [];
-  current.push(callback);
-  listenerStore.set(taskId, current);
-
-  return () => {
-    const active = listenerStore.get(taskId) || [];
-    const filtered = active.filter((listener) => listener !== callback);
-    listenerStore.set(taskId, filtered);
-  };
 }
