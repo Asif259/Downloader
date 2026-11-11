@@ -48,4 +48,6 @@ downloads/
 secrets/
 apps/backend/secrets/
 apps/backend/downloads/
+dist-hostinger/
+hostinger-frontend.zip
 apps/frontend/downloads/

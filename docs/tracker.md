@@ -62,11 +62,17 @@
 | **TASK-29** | DNS Rebinding & Asynchronous Resolution Defense | Phase 7 | P0 | **Done** | None | Fail-closed 3s DNS resolution against private/loopback/cloud metadata IP rebinding |
 | **TASK-30** | Multi-Origin CORS Allowlist & Header Hardening | Phase 7 | P0 | **Done** | None | Comma-separated CORS origin allowlist with default fallback and Vary: Origin |
 | **TASK-31** | Strict Filesystem Confinement Assertion | Phase 7 | P0 | **Done** | None | Boundary check ensuring streamed media is strictly within `DOWNLOAD_DIR` |
+| **TASK-32** | Hostinger Deployment Automation & Standalone Packaging | Phase 7 | P0 | **Done** | None | Docker Compose for VPS backend, standalone packager (`npm run package:hostinger`), and deployment guide |
 
 ---
 
 ## 3. Recent Changelog
 
+- **2026-11-11 (Hostinger Split-Architecture Deployment Readiness):**
+  - Added root `docker-compose.yml` for zero-friction containerized backend deployment on VPS with automated health checks, restart policies, and `/tmp/unidl` volume persistence.
+  - Enabled Next.js `output: "standalone"` and configured `turbopack.root` in `apps/frontend/next.config.mjs` and `apps/backend/next.config.mjs` to eliminate parent lockfile warnings.
+  - Created automated Hostinger frontend packaging script (`scripts/package-hostinger-frontend.js` & `npm run package:hostinger`) that builds the standalone frontend, bundles dependencies, sets up `.htaccess` and `server.js`, and packages a single upload-ready `hostinger-frontend.zip`.
+  - Authored comprehensive step-by-step guide in `docs/HOSTINGER_DEPLOYMENT.md` covering VPS Docker setup, Hostinger hPanel Node.js manager configuration, and CORS testing.
 - **2026-11-11 (Security Hardening & Threat Defense):**
   - Implemented asynchronous DNS pre-lookup validation (`apps/backend/src/lib/dnsValidator.js`) in `POST /api/download`, `POST /api/formats`, and `POST /api/detect` with a fail-closed 3-second timeout against DNS rebinding and private IP SSRF.
   - Expanded IPv4/IPv6 private IP detection (`packages/shared/src/detector.js` & `apps/backend/src/lib/detector.js`) covering RFC 1918, CGNAT (100.64.0.0/10), link-local/cloud metadata (169.254.0.0/16, fe80::/10), IPv4-mapped IPv6 (::ffff:), and ULA (fc00::/7).

@@ -1,6 +1,7 @@
 {
   "name": "downloader-monorepo",
   "version": "1.0.0",
+  "type": "module",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -10,7 +11,9 @@
     "build": "turbo build",
     "dev": "turbo dev",
     "lint": "turbo lint",
-    "clean": "turbo clean"
+    "test": "turbo test",
+    "clean": "turbo clean",
+    "package:hostinger": "node scripts/package-hostinger-frontend.js"
   },
   "devDependencies": {
     "turbo": "^2.4.4"

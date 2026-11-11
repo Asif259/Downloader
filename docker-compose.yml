@@ -1,0 +1,26 @@
+services:
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: downlink-backend
+    restart: unless-stopped
+    ports:
+      - "10000:10000"
+    environment:
+      - NODE_ENV=production
+      - PORT=10000
+      - DOWNLOAD_DIR=/tmp/unidl
+      - CORS_ALLOW_ORIGIN=* # Replace with your Hostinger frontend URL or keep * for testing
+    volumes:
+      - downlink_downloads:/tmp/unidl
+      - ./secrets:/app/secrets:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:10000/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  downlink_downloads:
