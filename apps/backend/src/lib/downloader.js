@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { chmodSync, existsSync } from "node:fs";
 import { access, mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -16,10 +16,21 @@ const DEFAULT_COOKIE_FILES = [
 let cookieArgsPromise = null;
 
 export function resolveYtDlpCommand() {
-  if (process.env.YTDLP_PATH && existsSync(process.env.YTDLP_PATH)) {
-    return process.env.YTDLP_PATH;
-  }
   const binaryName = process.platform === "win32" ? "yt-dlp.exe" : "yt-dlp";
+
+  const ensureExecutable = (cmdPath) => {
+    if (process.platform !== "win32" && typeof cmdPath === "string") {
+      try {
+        chmodSync(cmdPath, 0o755);
+      } catch {}
+    }
+    return cmdPath;
+  };
+
+  if (process.env.YTDLP_PATH && existsSync(process.env.YTDLP_PATH)) {
+    return ensureExecutable(process.env.YTDLP_PATH);
+  }
+
   const candidates = [
     path.join(process.cwd(), "bin", binaryName),
     path.join(process.cwd(), "apps", "backend", "bin", binaryName),
@@ -30,7 +41,7 @@ export function resolveYtDlpCommand() {
   ];
   for (const candidate of candidates) {
     if (existsSync(candidate)) {
-      return candidate;
+      return ensureExecutable(candidate);
     }
   }
   return "yt-dlp";

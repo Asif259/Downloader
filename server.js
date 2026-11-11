@@ -35,6 +35,23 @@ process.env.NODE_ENV = "production";
 process.env.HOSTNAME = "0.0.0.0";
 process.env.PORT = String(port);
 
+// Ensure any bundled yt-dlp binaries have executable permission (0o755) on Linux/macOS
+if (process.platform !== "win32") {
+  const possibleYtDlpPaths = [
+    path.resolve(__dirname, "apps/backend/bin/yt-dlp"),
+    path.resolve(__dirname, "apps/backend/.next/standalone/apps/backend/bin/yt-dlp"),
+    path.resolve(__dirname, ".next/standalone/apps/backend/bin/yt-dlp"),
+    path.resolve(__dirname, "bin/yt-dlp"),
+  ];
+  for (const binPath of possibleYtDlpPaths) {
+    if (fs.existsSync(binPath)) {
+      try {
+        fs.chmodSync(binPath, 0o755);
+      } catch {}
+    }
+  }
+}
+
 // Change directory to standalone folder so relative paths and node_modules resolve
 process.chdir(path.dirname(standalonePath));
 

@@ -71,8 +71,26 @@ async function main() {
     return;
   }
 
+  const syncToStandalone = () => {
+    const standaloneBin = path.join(BACKEND_ROOT, ".next", "standalone", "apps", "backend", "bin");
+    try {
+      fs.mkdirSync(standaloneBin, { recursive: true });
+      fs.copyFileSync(TARGET_PATH, path.join(standaloneBin, BINARY_NAME));
+      if (process.platform !== "win32") {
+        fs.chmodSync(path.join(standaloneBin, BINARY_NAME), 0o755);
+      }
+      console.log(`✓ Synced yt-dlp binary with 0755 permissions to: ${standaloneBin}`);
+    } catch {}
+  };
+
   // 2. If local standalone binary is already downloaded and executable
   if (fs.existsSync(TARGET_PATH)) {
+    if (process.platform !== "win32") {
+      try {
+        fs.chmodSync(TARGET_PATH, 0o755);
+      } catch {}
+    }
+    syncToStandalone();
     try {
       execSync(`"${TARGET_PATH}" --version`, { stdio: "ignore" });
       console.log(`✓ Local standalone yt-dlp binary is verified at: ${TARGET_PATH}`);
@@ -92,16 +110,7 @@ async function main() {
   try {
     await downloadBinary(url, TARGET_PATH);
     console.log(`✓ Successfully installed standalone yt-dlp to: ${TARGET_PATH}`);
-    
-    // Also copy to standalone directory if it exists
-    const standaloneBin = path.join(BACKEND_ROOT, ".next", "standalone", "apps", "backend", "bin");
-    try {
-      fs.mkdirSync(standaloneBin, { recursive: true });
-      fs.copyFileSync(TARGET_PATH, path.join(standaloneBin, BINARY_NAME));
-      if (process.platform !== "win32") {
-        fs.chmodSync(path.join(standaloneBin, BINARY_NAME), 0o755);
-      }
-    } catch {}
+    syncToStandalone();
   } catch (err) {
     console.warn(`⚠️ Could not auto-download yt-dlp: ${err.message}`);
     console.warn("   You can place the yt-dlp binary manually into apps/backend/bin/yt-dlp");
