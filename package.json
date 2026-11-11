@@ -8,21 +8,21 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "turbo run build --filter=downlink-backend",
-    "build:all": "turbo build",
-    "dev": "turbo dev",
-    "lint": "turbo lint",
-    "test": "turbo test",
-    "clean": "turbo clean",
+    "build": "npm run build --workspace=downlink-backend",
+    "build:all": "npx turbo build",
+    "dev": "npx turbo dev",
+    "lint": "npx turbo lint",
+    "test": "npx turbo test",
+    "clean": "npx turbo clean",
     "start": "node server.js",
-    "build:frontend": "turbo run build --filter=downlink-frontend",
+    "build:frontend": "npm run build --workspace=downlink-frontend",
     "start:frontend": "npm run start --workspace=downlink-frontend",
-    "build:backend": "turbo run build --filter=downlink-backend",
+    "build:backend": "npm run build --workspace=downlink-backend",
     "start:backend": "node server.js",
     "package:hostinger": "node scripts/package-hostinger-frontend.js",
     "package:backend": "node scripts/package-hostinger-backend.js"
   },
-  "devDependencies": {
+  "dependencies": {
     "turbo": "^2.4.4"
   },
   "packageManager": "npm@11.19.0"
