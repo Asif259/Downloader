@@ -92,6 +92,16 @@ async function main() {
   try {
     await downloadBinary(url, TARGET_PATH);
     console.log(`✓ Successfully installed standalone yt-dlp to: ${TARGET_PATH}`);
+    
+    // Also copy to standalone directory if it exists
+    const standaloneBin = path.join(BACKEND_ROOT, ".next", "standalone", "apps", "backend", "bin");
+    try {
+      fs.mkdirSync(standaloneBin, { recursive: true });
+      fs.copyFileSync(TARGET_PATH, path.join(standaloneBin, BINARY_NAME));
+      if (process.platform !== "win32") {
+        fs.chmodSync(path.join(standaloneBin, BINARY_NAME), 0o755);
+      }
+    } catch {}
   } catch (err) {
     console.warn(`⚠️ Could not auto-download yt-dlp: ${err.message}`);
     console.warn("   You can place the yt-dlp binary manually into apps/backend/bin/yt-dlp");
@@ -101,3 +111,4 @@ async function main() {
 main().catch((err) => {
   console.warn("ensure-ytdlp warning:", err.message);
 });
+

@@ -23,6 +23,9 @@ export function resolveYtDlpCommand() {
   const candidates = [
     path.join(process.cwd(), "bin", binaryName),
     path.join(process.cwd(), "apps", "backend", "bin", binaryName),
+    path.resolve(process.cwd(), "..", "bin", binaryName),
+    path.resolve(process.cwd(), "..", "..", "bin", binaryName),
+    path.resolve(process.cwd(), "..", "..", "apps", "backend", "bin", binaryName),
     path.join(os.homedir(), ".local", "bin", binaryName),
   ];
   for (const candidate of candidates) {
