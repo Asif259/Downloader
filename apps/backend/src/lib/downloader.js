@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { access, mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -13,6 +14,24 @@ const DEFAULT_COOKIE_FILES = [
   path.join(process.cwd(), "secrets", "youtube.cookies.txt"),
 ];
 let cookieArgsPromise = null;
+
+export function resolveYtDlpCommand() {
+  if (process.env.YTDLP_PATH && existsSync(process.env.YTDLP_PATH)) {
+    return process.env.YTDLP_PATH;
+  }
+  const binaryName = process.platform === "win32" ? "yt-dlp.exe" : "yt-dlp";
+  const candidates = [
+    path.join(process.cwd(), "bin", binaryName),
+    path.join(process.cwd(), "apps", "backend", "bin", binaryName),
+    path.join(os.homedir(), ".local", "bin", binaryName),
+  ];
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return "yt-dlp";
+}
 
 export function isPathWithinDownloadDir(targetPath) {
   if (typeof targetPath !== "string" || !targetPath.trim()) {
@@ -152,7 +171,7 @@ async function pickNewest(files) {
 
 function runYtDlp(args) {
   return new Promise((resolve, reject) => {
-    const child = spawn("yt-dlp", args, { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(resolveYtDlpCommand(), args, { stdio: ["ignore", "pipe", "pipe"] });
 
     let stdout = "";
     let stderr = "";
@@ -343,7 +362,7 @@ export async function downloadWithProgress({ url, format, onProgress, signal }) 
 
     args.push(url);
 
-    const child = spawn("yt-dlp", args, { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(resolveYtDlpCommand(), args, { stdio: ["ignore", "pipe", "pipe"] });
     let wasAborted = false;
     let abortTimeout = null;
 

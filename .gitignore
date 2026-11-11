@@ -50,4 +50,6 @@ apps/backend/secrets/
 apps/backend/downloads/
 dist-hostinger/
 hostinger-frontend.zip
+dist-hostinger-backend/
+hostinger-backend.zip
 apps/frontend/downloads/

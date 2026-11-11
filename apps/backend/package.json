@@ -5,7 +5,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p ${PORT:-10000}",
+    "prebuild": "node scripts/ensure-ytdlp.js",
     "build": "next build",
+    "prestart": "node scripts/ensure-ytdlp.js",
     "start": "next start -p ${PORT:-10000}",
     "lint": "eslint",
     "test": "node --test test/security.test.js"

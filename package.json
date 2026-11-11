@@ -15,7 +15,11 @@
     "clean": "turbo clean",
     "start": "npm run start --workspace=downlink-frontend",
     "build:frontend": "turbo run build --filter=downlink-frontend",
-    "package:hostinger": "node scripts/package-hostinger-frontend.js"
+    "start:frontend": "npm run start --workspace=downlink-frontend",
+    "build:backend": "turbo run build --filter=downlink-backend",
+    "start:backend": "npm run start --workspace=downlink-backend",
+    "package:hostinger": "node scripts/package-hostinger-frontend.js",
+    "package:backend": "node scripts/package-hostinger-backend.js"
   },
   "devDependencies": {
     "turbo": "^2.4.4"

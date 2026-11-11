@@ -1,191 +1,146 @@
-# 🚀 Hostinger Deployment Guide: DownLink Universal Downloader
+# 🚀 Deployment Guide: Frontend on Vercel + Backend on Hostinger Web Apps
 
-This guide details how to deploy **DownLink** with **$0 extra server cost** using your active **Hostinger Business Plan (Web Apps)**:
-- **Frontend:** Hosted on your **Hostinger Business Plan** via **Web Apps** (Node.js/Next.js) directly from GitHub or File Manager.
-- **Backend:** Hosted on **Render's Free Docker Tier** (or Koyeb / HuggingFace Spaces) where `yt-dlp` and `ffmpeg` run in a full container environment with zero subscription fees.
-- **Connection:** Hostinger Frontend calls the Render Backend via `NEXT_PUBLIC_API_BASE_URL=https://your-backend.onrender.com`.
+This guide details how to deploy **DownLink** with **$0 additional cost** using:
+- **Frontend:** Hosted on **Vercel** (Global edge CDN, automated Next.js builds, free SSL, zero maintenance).
+- **Backend:** Hosted on your active **Hostinger Business Plan** via **Web Apps** (Node.js standalone runtime with an embedded standalone Linux `yt-dlp` executable).
+- **Interconnection:** Vercel frontend communicates with the Hostinger Web App backend over HTTPS via `NEXT_PUBLIC_API_BASE_URL`.
 
 ---
 
-## 🏗️ Architecture Overview (Zero-Cost Setup)
+## 🏗️ Architecture Overview
 
 ```mermaid
 flowchart LR
-    User[End User Browser] -->|HTTP / HTTPS| Frontend[Hostinger Web Apps<br/>Business Plan active to 2030<br/>Next.js Frontend]
-    Frontend -->|HTTPS API Requests| Backend[Render Free Docker Web Service<br/>yt-dlp + ffmpeg Container]
-    Backend -->|Media Extraction| Platforms[YouTube / TikTok / Instagram / X]
+    User[End User Browser] -->|HTTPS| Vercel[Vercel Edge Network<br/>apps/frontend Next.js App]
+    Vercel -->|REST API / SSE Streams| Hostinger[Hostinger Web Apps<br/>Business Plan Node.js Runtime<br/>apps/backend + Embedded yt-dlp]
+    Hostinger -->|Media Extraction| Media[YouTube / TikTok / Instagram / X / Reddit]
 ```
 
 ---
 
-## 🛠️ Step 1: Deploy the Backend on Render (100% Free Docker Tier)
+## 📦 Part 1: Deploy Backend on Hostinger Web Apps
 
-Because Hostinger Business Web Hosting is a sandboxed Node.js environment without root access or `ffmpeg` / `yt-dlp` system packages, your backend runs in a free container on Render.
+Because Hostinger Web Apps run in a containerized Node.js environment without root/`apt-get` access, we bundle a self-contained Linux PyInstaller binary of `yt-dlp` right inside `bin/yt-dlp`.
 
-1. Go to [dashboard.render.com](https://dashboard.render.com/) (sign up for free with GitHub if you haven't).
-2. Click **New +** ➔ **Blueprint** (or **Web Service**).
-3. Connect your GitHub repository: `Downloader`.
-4. Render will automatically detect [`render.yaml`](file:///Users/ashrafulasif/My%20projects/Downloader/render.yaml) from your repository:
-   - **Environment:** Docker
-   - **Root Directory:** `apps/backend`
-   - **Plan:** Free
-   - **Healthcheck Path:** `/api/status`
-5. Click **Apply / Create Web Service**.
-6. Render builds the Docker image (with Node 20, Python 3, `yt-dlp`, and `ffmpeg`) and provisions a free HTTPS URL:
-   `https://downlink-backend-xxxx.onrender.com`
-7. Test the backend in your browser or terminal:
+### Option A: 1-Click Upload with `hostinger-backend.zip` (Easiest)
+
+1. **Verify your backend package:**
+   The pre-packaged standalone backend archive `hostinger-backend.zip` (17.44 MB) is ready in your project root:
    ```bash
-   curl https://downlink-backend-xxxx.onrender.com/api/status
+   # Re-generate at any time by running:
+   npm run package:backend
    ```
-   Expected response: `{"tasks":[]}`.
+
+2. **Create Web App in Hostinger hPanel:**
+   - In your Hostinger dashboard, go to **Websites** ➔ **Web Apps** (left sidebar).
+   - Click the purple **+ Create site** button.
+   - Choose your domain or subdomain (e.g. `api.yourdomain.com` or a free Hostinger preview domain like `downlink-api.hostingersite.com`).
+
+3. **Upload Files:**
+   - In hPanel, go to **Files** ➔ **File Manager** for your backend site.
+   - Open the application folder (`public_html` or domain root).
+   - Click **Upload** ➔ upload `hostinger-backend.zip`.
+   - Right-click `hostinger-backend.zip` ➔ click **Extract** (extract directly into root).
+   - Ensure the extracted files contain:
+     - `server.js`
+     - `bin/yt-dlp`
+     - `.next/`
+     - `node_modules/`
+     - `package.json`
+     - `.env.production`
+     - `.htaccess`
+
+4. **Configure Node.js Runtime:**
+   - In hPanel, locate **Node.js** settings for this site.
+   - Set **Node.js Version:** `20.x` (or `22.x`).
+   - Set **Application Startup File:** `server.js`.
+   - Set **Application Root:** `public_html`.
+   - Click **Start** or **Restart Application**.
+
+5. **Verify Backend Health:**
+   Open in your browser or run in terminal:
+   ```bash
+   curl -i https://<your-backend-hostinger-url>/api/status
+   ```
+   Expected response:
+   ```json
+   HTTP/1.1 200 OK
+   {"tasks":[]}
+   ```
+   👉 *Copy your backend URL (e.g., `https://downlink-api.hostingersite.com`). You will need it in Part 2!*
 
 ---
 
-## 📦 Step 2: Deploy Frontend on Hostinger Web Apps
+### Option B: Deploy from GitHub directly in Hostinger Web Apps
 
-You already have an active **Hostinger Business Plan** with **Web Apps** enabled (as seen in your hPanel dashboard).
-
-### Option A: Direct GitHub Deployment (Recommended)
-1. In your Hostinger hPanel, go to **Websites ➔ Web Apps**.
-2. Click **+ Create site** (top right button).
-3. Select **Node.js web app** ➔ choose **Import your Git repository**.
-4. Authorize and select your GitHub repository `Downloader` (branch: `main`).
-5. Configure the build parameters:
-   - **Framework:** `Next.js`
+1. In hPanel, go to **Websites** ➔ **Web Apps** ➔ **+ Create site**.
+2. Select **Import your Git repository** and connect your `Downloader` GitHub repo.
+3. Configure the settings:
+   - **Branch:** `main`
+   - **Framework:** `Next.js` / `Node.js`
+   - **Root Directory:** `./`
    - **Node.js Version:** `20.x`
-   - **Build Command:** `npm run build:frontend`
-   - **Start Command:** `npm run start`
-6. Add Environment Variables:
-   - `NEXT_PUBLIC_API_BASE_URL` = `https://downlink-backend-xxxx.onrender.com` (your Render backend URL)
+   - **Build Command:** `npm run build:backend`
+   - **Start Command:** `npm run start:backend`
+4. In Environment Variables:
    - `NODE_ENV` = `production`
-7. Click **Deploy**. Hostinger will build and assign you a live `*.hostingersite.com` address (or your custom domain) with free automated SSL.
+   - `PORT` = `10000`
+   - `DOWNLOAD_DIR` = `/tmp/unidl`
+   - `CORS_ALLOW_ORIGIN` = `*`
+5. Click **Deploy**.
 
 ---
 
-### Option B: 1-Click Upload using `hostinger-frontend.zip`
-If you prefer manual upload instead of GitHub webhook:
-1. On your local machine, run:
+## ⚡ Part 2: Deploy Frontend on Vercel
+
+1. **Push your code to GitHub:**
+   Ensure your latest commits are pushed to your GitHub repository:
    ```bash
-   npm run package:hostinger -- --api-url=https://downlink-backend-xxxx.onrender.com
+   git push origin main
    ```
-   *(This builds and compresses the standalone server into `hostinger-frontend.zip`).*
-2. In Hostinger hPanel, go to **Files ➔ File Manager** ➔ open `public_html/`.
-3. Upload and extract `hostinger-frontend.zip`.
-4. Go to **Websites ➔ Node.js**:
-   - **Application Root:** `public_html`
-   - **Application Startup File:** `server.js`
-   - **Node.js Version:** `20.x`
-5. Click **Save & Restart**.
+
+2. **Import Project in Vercel:**
+   - Go to [vercel.com/new](https://vercel.com/new) and log in.
+   - Click **Import** next to your `Downloader` repository.
+
+3. **Configure Project Settings:**
+   - **Framework Preset:** `Next.js` (auto-detected).
+   - **Root Directory:** Click **Edit** and select `apps/frontend`.
+   - **Build and Output Settings:** Leave default (`next build`).
+
+4. **Set Environment Variables:**
+   Expand **Environment Variables** and add:
+   - **Key:** `NEXT_PUBLIC_API_BASE_URL`
+   - **Value:** `https://<your-backend-hostinger-url>` (e.g., `https://downlink-api.hostingersite.com` from Part 1).
+   - *(Optional analytics or ads variables can be added here as needed).*
+
+5. **Deploy:**
+   - Click **Deploy**.
+   - Vercel will build the frontend and provide your production URL (e.g., `https://downlink.vercel.app`).
 
 ---
 
-## 🔒 Step 3: Configure CORS on Backend
+## 🔒 Part 3: Lock Down Backend CORS (Production Security)
 
-Once your Hostinger website is live (e.g. `https://downlink.hostingersite.com` or `https://yourdomain.com`):
-1. In your Render Dashboard ➔ select `downlink-backend` ➔ **Environment**.
-2. Set `CORS_ALLOW_ORIGIN` to your Hostinger frontend URL (e.g. `https://downlink.hostingersite.com`).
-3. Click **Save Changes**.
-
----
-
-## 🖥️ Alternative: Deploying on a VPS (If you upgrade later)
-
-If you acquire a VPS in the future, you can run the entire backend container via Docker Compose:
-ufw allow 10000/tcp
-ufw status
-```
-
-### 1.5 Verify Backend Health
-Test that the backend is responding from your local computer or terminal:
-```bash
-curl http://<YOUR_VPS_IP>:10000/api/status
-```
-Expected output:
-```json
-{"tasks":[]}
-```
+Once you have your Vercel URL:
+1. In your Hostinger backend (`.env.production` in File Manager, or hPanel Environment Variables):
+2. Update `CORS_ALLOW_ORIGIN`:
+   ```env
+   CORS_ALLOW_ORIGIN=https://downlink.vercel.app
+   ```
+   *(If you attach a custom domain to Vercel later like `https://downlink.com`, update it here too).*
+3. Restart the Node.js application in Hostinger hPanel.
 
 ---
 
-## 📦 Step 2: Package and Deploy Frontend to Hostinger
+## 🧪 Part 4: End-to-End Testing & Verification
 
-We have automated the Next.js standalone bundling so you don't need to manually configure dependencies in hPanel.
-
-### 2.1 Package the Frontend on your Local Machine
-Run the automated packager script, providing your VPS IP and port:
-
-```bash
-npm run package:hostinger -- --api-url=http://<YOUR_VPS_IP>:10000
-```
-
-> **Note:** If you later attach a domain (e.g. `https://api.yourdomain.com`), simply re-run:
-> `npm run package:hostinger -- --api-url=https://api.yourdomain.com`
-
-This script automatically creates a production-ready archive at the root of the project:  
-📁 **`hostinger-frontend.zip`** (contains `server.js`, bundled production `node_modules`, `.next`, `public`, `.env.production`, and `.htaccess`).
-
----
-
-### 2.2 Upload to Hostinger hPanel
-
-1. Log into your **Hostinger Control Panel (hPanel)**.
-2. Go to **Websites** ➔ click **Manage** on your domain.
-3. Open **File Manager** (Files ➔ File Manager).
-4. Navigate into your website root:
-   - For main domain: `public_html/`
-   - For subdomain: `domains/subdomain.yourdomain.com/public_html/`
-5. Click **Upload** (top right icon) ➔ select `hostinger-frontend.zip`.
-6. Right-click `hostinger-frontend.zip` ➔ select **Extract** ➔ extract directly into `public_html`.
-7. Once extracted, you should see:
-   - `server.js`
-   - `.next/`
-   - `public/`
-   - `node_modules/`
-   - `package.json`
-   - `.htaccess`
-   - `.env.production`
-8. (Optional) You can delete the uploaded `.zip` file to save disk space.
-
----
-
-### 2.3 Configure Node.js in Hostinger hPanel
-
-1. In hPanel, use the search bar or navigate to **Advanced** ➔ **Node.js** (or **Websites** ➔ **Node.js**).
-2. Click **Create Application** (or Edit existing):
-   - **Node.js Version:** `20.x` (or `22.x` LTS).
-   - **Application Mode:** `Production`.
-   - **Application Root:** `public_html` (or your subdomain folder).
-   - **Application Startup File:** `server.js`.
-3. In **Environment Variables** (if available in your hPanel):
-   - Add: `PORT=3000`
-   - Add: `NODE_ENV=production`
-4. Click **Save** / **Restart Application**.
-
----
-
-## 🔒 Step 3: CORS & Network Verification
-
-1. In your backend `docker-compose.yml` on the VPS, verify `CORS_ALLOW_ORIGIN`:
-   - During direct IP testing: keep `CORS_ALLOW_ORIGIN=*` (already configured by default).
-   - Once your Hostinger domain is active: update `CORS_ALLOW_ORIGIN=https://your-hostinger-domain.com` and run `docker compose up -d`.
-2. Visit your Hostinger website in your browser: `http://your-hostinger-domain.com` (or preview URL).
-3. Paste a test video URL (e.g. YouTube or Instagram).
-4. Verify that format detection, live progress streaming, and download file generation succeed.
-
----
-
-## 💡 Troubleshooting & Common Questions
-
-### 1. `server.js` fails to start on Hostinger
-- Ensure you extracted the files so `server.js` is at the **top level** of `public_html/`, not nested in an extra folder.
-- Check the Node.js logs in hPanel under **Node.js ➔ Application Logs**.
-
-### 2. Frontend shows "Network Error" or "Failed to connect to backend"
-- Verify that your VPS firewall allows port `10000` (`ufw allow 10000/tcp`).
-- If your Hostinger frontend uses `https://`, modern browsers block mixed-content requests to `http://<VPS_IP>:10000`. You must either:
-  - Access the frontend via `http://` for initial IP testing, OR
-  - Point a DNS subdomain (e.g. `api.yourdomain.com`) to your VPS IP and run Certbot/Nginx on the VPS for SSL.
-
-### 3. YouTube Download Restrictions
-- To enable authenticated YouTube downloads (prevent bot detection), place your exported `youtube.cookies.txt` into the `./secrets/` directory on your VPS. The Docker container mounts this directory automatically.
-
+1. Open your Vercel frontend URL: `https://downlink.vercel.app`.
+2. Paste any supported video link (YouTube, Instagram, TikTok, Reddit, etc.).
+3. Click **Analyze**:
+   - Verify media title, thumbnail, duration, and format options load.
+4. Select a resolution and click **Download**:
+   - Confirm the live SSE progress bar streams download percentage.
+   - Verify the file is generated and downloaded to your device.
+5. In your browser DevTools Network tab:
+   - Check that API calls go directly to `https://<your-hostinger-backend>/api/...` with HTTP 200 and proper CORS headers.
