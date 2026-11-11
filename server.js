@@ -2,10 +2,10 @@
 
 /**
  * Root Server Entry Point for Hostinger Web Apps
- * Spawns the compiled Next.js standalone backend with the environment PORT.
+ * Directly boots the compiled Next.js standalone server in the current process
+ * so that Hostinger's listen() watchdog detects server.listen() immediately.
  */
 
-import { spawn } from "node:child_process";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -29,26 +29,14 @@ if (!standalonePath) {
 }
 
 const port = process.env.PORT || "3000";
-console.log(`🚀 Starting DownLink Backend from ${standalonePath} on 0.0.0.0:${port}...`);
+console.log(`🚀 Booting DownLink Standalone Backend on 0.0.0.0:${port}...`);
 
-const child = spawn(process.execPath, [standalonePath], {
-  stdio: "inherit",
-  env: {
-    ...process.env,
-    NODE_ENV: "production",
-    HOSTNAME: "0.0.0.0",
-    PORT: port,
-  },
-});
+process.env.NODE_ENV = "production";
+process.env.HOSTNAME = "0.0.0.0";
+process.env.PORT = String(port);
 
-child.on("exit", (code, signal) => {
-  if (signal) {
-    process.kill(process.pid, signal);
-  } else {
-    process.exit(code ?? 0);
-  }
-});
+// Change directory to standalone folder so relative paths and node_modules resolve
+process.chdir(path.dirname(standalonePath));
 
-process.on("SIGTERM", () => child.kill("SIGTERM"));
-process.on("SIGINT", () => child.kill("SIGINT"));
-
+// Directly import in the current process (no child process spawn) so Hostinger detects listen()
+await import("file://" + standalonePath);
