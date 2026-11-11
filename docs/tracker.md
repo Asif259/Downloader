@@ -59,11 +59,20 @@
 | **TASK-26** | Production Cookie Setup on Render | Phase 7 | P1 | **In Progress** | None | Mount secret cookie file for YouTube bypass |
 | **TASK-27** | Vercel Frontend Live Verification | Phase 7 | P0 | **Not Started** | TASK-26 | Verify production CORS and live downloads |
 | **TASK-28** | Automatic Disk Eviction Cron | Phase 7 | P1 | **Done** | None | 15-minute background sweep of `/tmp/unidl` |
+| **TASK-29** | DNS Rebinding & Asynchronous Resolution Defense | Phase 7 | P0 | **Done** | None | Fail-closed 3s DNS resolution against private/loopback/cloud metadata IP rebinding |
+| **TASK-30** | Multi-Origin CORS Allowlist & Header Hardening | Phase 7 | P0 | **Done** | None | Comma-separated CORS origin allowlist with default fallback and Vary: Origin |
+| **TASK-31** | Strict Filesystem Confinement Assertion | Phase 7 | P0 | **Done** | None | Boundary check ensuring streamed media is strictly within `DOWNLOAD_DIR` |
 
 ---
 
 ## 3. Recent Changelog
 
+- **2026-11-11 (Security Hardening & Threat Defense):**
+  - Implemented asynchronous DNS pre-lookup validation (`apps/backend/src/lib/dnsValidator.js`) in `POST /api/download`, `POST /api/formats`, and `POST /api/detect` with a fail-closed 3-second timeout against DNS rebinding and private IP SSRF.
+  - Expanded IPv4/IPv6 private IP detection (`packages/shared/src/detector.js` & `apps/backend/src/lib/detector.js`) covering RFC 1918, CGNAT (100.64.0.0/10), link-local/cloud metadata (169.254.0.0/16, fe80::/10), IPv4-mapped IPv6 (::ffff:), and ULA (fc00::/7).
+  - Hardened CORS middleware (`apps/backend/src/lib/cors.js`) supporting comma-separated `CORS_ALLOW_ORIGIN` allowlist, dynamic origin reflection, and `Vary: Origin` headers across all API routes.
+  - Added filesystem boundary assertion (`isPathWithinDownloadDir`) in `apps/backend/src/app/api/file/[taskId]/route.js` preventing path traversal.
+  - Added automated backend security test suite (`apps/backend/test/security.test.js`) and added Turborepo `test` pipeline. All tests passing (7/7).
 - **2026-11-11 (Frontend Design Elevation & Quality Assurance):**
   - Completed Phase 2 of `docs/PLAN.md` with Emil Kowalski motion and Apple-inspired tactile design tokens.
   - Implemented zero-reflow layout stability and compositor-only animations (`will-change: transform`, composite GPU properties).

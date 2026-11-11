@@ -6,18 +6,21 @@ import { listTasks } from "@/lib/tasks";
 
 export const runtime = "nodejs";
 
-export function OPTIONS() {
-  return corsPreflight();
+export function OPTIONS(request) {
+  return corsPreflight(request);
 }
 
-export async function GET() {
+export async function GET(request) {
   const startedAt = Date.now();
   try {
     const tasks = await listTasks();
-    const response = applyCors(NextResponse.json(
-      { tasks },
-      { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } },
-    ));
+    const response = applyCors(
+      NextResponse.json(
+        { tasks },
+        { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } },
+      ),
+      request,
+    );
     logRequest({ method: "GET", route: "/api/status", status: 200, durationMs: Date.now() - startedAt });
     return response;
   } catch (error) {
@@ -27,6 +30,7 @@ export async function GET() {
         { error: classified.message, code: classified.code, userMessage: classified.userMessage },
         { status: classified.status },
       ),
+      request,
     );
     logRequest({
       method: "GET",

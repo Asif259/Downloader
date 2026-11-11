@@ -1,12 +1,14 @@
 {
   "name": "downlink-backend",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "scripts": {
     "dev": "next dev -p ${PORT:-10000}",
     "build": "next build",
     "start": "next start -p ${PORT:-10000}",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --test test/security.test.js"
   },
   "dependencies": {
     "next": "16.1.6",

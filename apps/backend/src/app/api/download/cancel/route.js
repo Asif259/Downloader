@@ -6,8 +6,8 @@ import { cancelTaskById } from "@/lib/tasks";
 
 export const runtime = "nodejs";
 
-export function OPTIONS() {
-  return corsPreflight();
+export function OPTIONS(request) {
+  return corsPreflight(request);
 }
 
 export async function POST(request) {
@@ -16,13 +16,16 @@ export async function POST(request) {
     const body = await request.json().catch(() => ({}));
     const taskId = typeof body?.taskId === "string" ? body.taskId : "";
     if (!taskId) {
-      const response = applyCors(NextResponse.json({ error: "taskId is required.", code: "INVALID_TASK_ID" }, { status: 400 }));
+      const response = applyCors(
+        NextResponse.json({ error: "taskId is required.", code: "INVALID_TASK_ID" }, { status: 400 }),
+        request,
+      );
       logRequest({ method: "POST", route: "/api/download/cancel", status: 400, durationMs: Date.now() - startedAt, errorCode: "INVALID_TASK_ID" });
       return response;
     }
 
     const canceled = await cancelTaskById(taskId);
-    const response = applyCors(NextResponse.json({ ok: true, canceled }));
+    const response = applyCors(NextResponse.json({ ok: true, canceled }), request);
     logRequest({ method: "POST", route: "/api/download/cancel", status: 200, durationMs: Date.now() - startedAt });
     return response;
   } catch (error) {
@@ -32,6 +35,7 @@ export async function POST(request) {
         { error: classified.message, code: classified.code, userMessage: classified.userMessage },
         { status: classified.status },
       ),
+      request,
     );
     logRequest({
       method: "POST",

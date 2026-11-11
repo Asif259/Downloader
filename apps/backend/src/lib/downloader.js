@@ -3,7 +3,7 @@ import { access, mkdir, readFile, readdir, stat, unlink, writeFile } from "node:
 import os from "node:os";
 import path from "node:path";
 
-const DOWNLOAD_DIR = process.env.DOWNLOAD_DIR || path.join(os.homedir(), "Downloads", "DownLink");
+export const DOWNLOAD_DIR = process.env.DOWNLOAD_DIR || path.join(os.homedir(), "Downloads", "DownLink");
 const EVICTION_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
 const SWEEP_INTERVAL_MS = 15 * 60 * 1000;  // 15 minutes
 const COOKIE_FILE_PATH = path.join(os.tmpdir(), "downlink-ytdlp-cookies.txt");
@@ -13,6 +13,18 @@ const DEFAULT_COOKIE_FILES = [
   path.join(process.cwd(), "secrets", "youtube.cookies.txt"),
 ];
 let cookieArgsPromise = null;
+
+export function isPathWithinDownloadDir(targetPath) {
+  if (typeof targetPath !== "string" || !targetPath.trim()) {
+    return false;
+  }
+  const resolvedTarget = path.resolve(targetPath);
+  const resolvedBase = path.resolve(DOWNLOAD_DIR);
+  return (
+    resolvedTarget === resolvedBase ||
+    resolvedTarget.startsWith(resolvedBase + path.sep)
+  );
+}
 
 export async function sweepExpiredDownloads(maxAgeMs = EVICTION_MAX_AGE_MS) {
   try {
