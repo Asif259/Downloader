@@ -1,20 +1,20 @@
 {
-  "name": "downlink",
-  "version": "0.1.0",
+  "name": "downloader-monorepo",
+  "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "next": "16.1.6",
-    "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "clean": "turbo clean"
   },
   "devDependencies": {
-    "eslint": "^9",
-    "eslint-config-next": "16.1.6"
-  }
+    "turbo": "^2.4.4"
+  },
+  "packageManager": "npm@11.19.0"
 }
+

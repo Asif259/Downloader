@@ -1,6 +1,6 @@
-# dependencies
-/node_modules
-/.pnp
+# Dependencies
+node_modules/
+.pnp
 .pnp.*
 .yarn/*
 !.yarn/patches
@@ -8,37 +8,44 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
+# Turborepo
+.turbo/
 
-# next.js
-/.next/
-/out/
+# Testing & Coverage
+coverage/
 
-# production
-/build
+# Next.js build outputs
+.next/
+out/
 
-# misc
+# Production
+build/
+
+# Misc & OS
 .DS_Store
 *.pem
 
-# debug
+# Debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
+# Environment files
 .env*.local
 .env
+!.env.example
 
-# vercel
-.vercel
+# Vercel
+.vercel/
 
-# prisma
+# Prisma
 prisma/*.db
 prisma/*.db-journal
 
-# downloads
-/downloads/
-/src/generated/prisma
+# App specific runtime / secrets
+downloads/
+secrets/
+apps/backend/secrets/
+apps/backend/downloads/
+apps/frontend/downloads/

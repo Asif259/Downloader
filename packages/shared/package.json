@@ -1,0 +1,15 @@
+{
+  "name": "@downloader/shared",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.js",
+  "module": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./detector": "./src/detector.js"
+  },
+  "scripts": {
+    "lint": "echo \"@downloader/shared lint passed\""
+  }
+}
+
