@@ -1,6 +1,7 @@
 const DEFAULT_ORIGINS = [
   "http://localhost:3000",
   "http://127.0.0.1:3000",
+  "https://down-link.vercel.app",
   process.env.FRONTEND_URL,
   process.env.NEXT_PUBLIC_APP_URL,
 ].filter(Boolean);
@@ -22,7 +23,9 @@ export function getAllowedOrigins() {
 export function isOriginAllowed(origin, allowedOrigins = getAllowedOrigins()) {
   if (!origin) return false;
   if (allowedOrigins.includes("*")) return true;
-  return allowedOrigins.includes(origin);
+  if (allowedOrigins.includes(origin)) return true;
+  if (/^https:\/\/([a-z0-9-]+\.)?vercel\.app$/.test(origin)) return true;
+  return false;
 }
 
 function resolveOrigin(incomingOrigin) {
