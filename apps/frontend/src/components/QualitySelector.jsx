@@ -13,7 +13,39 @@ export default function QualitySelector({ formats, value, onChange, onDownload, 
       <div className="quality-grid">
         <div>
           <label htmlFor="format" className="label">
-            Select Quality
+            Quick Quality Selection
+          </label>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.75rem" }}>
+            <button
+              type="button"
+              className={`btn ${value === "best" ? "btn-primary" : "btn-secondary"}`}
+              style={{ padding: "0.35rem 0.8rem", fontSize: "0.82rem", borderRadius: "8px" }}
+              onClick={() => onChange("best")}
+              disabled={disabled || busy}
+            >
+              ★ Best Auto
+            </button>
+            {formats.slice(0, 4).map((f) => {
+              const label = f.resolution && f.resolution.includes("x")
+                ? `${f.resolution.split("x")[1]}p`
+                : f.resolution || f.ext.toUpperCase();
+              return (
+                <button
+                  key={`pill-${f.formatId}`}
+                  type="button"
+                  className={`btn ${value === f.formatId ? "btn-primary" : "btn-secondary"}`}
+                  style={{ padding: "0.35rem 0.8rem", fontSize: "0.82rem", borderRadius: "8px" }}
+                  onClick={() => onChange(f.formatId)}
+                  disabled={disabled || busy}
+                >
+                  {label} ({f.ext.toUpperCase()})
+                </button>
+              );
+            })}
+          </div>
+
+          <label htmlFor="format" className="label" style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+            Or Choose Specific Stream Format
           </label>
           <select
             id="format"
@@ -22,14 +54,15 @@ export default function QualitySelector({ formats, value, onChange, onDownload, 
             onChange={(event) => onChange(event.target.value)}
             disabled={disabled || busy}
           >
-            <option value="best">Best Available</option>
+            <option value="best">Best Available (Auto Merge)</option>
             {formats.map((format) => (
               <option key={`${format.formatId}-${format.ext}`} value={format.formatId}>
-                {format.resolution} • {format.ext.toUpperCase()} • {format.formatId}
+                {format.resolution} • {format.ext.toUpperCase()} • ID: {format.formatId}
               </option>
             ))}
           </select>
         </div>
+
         <button
           className="btn btn-primary download-btn"
           onClick={onDownload}
@@ -50,7 +83,7 @@ export default function QualitySelector({ formats, value, onChange, onDownload, 
                 <polyline points="7,10 12,15 17,10" />
                 <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
-              Download Now
+              Start Download
             </>
           )}
         </button>

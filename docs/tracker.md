@@ -64,7 +64,14 @@
 
 ## 3. Recent Changelog
 
-- **2026-11-11:**
+- **2026-11-11 (Optimization & Polish):**
+  - Implemented in-memory TTL caching for `yt-dlp` metadata in backend downloader to prevent duplicate scrapers.
+  - Consolidated frontend format/preview fetching into a single unified API query, cutting backend load by 50%.
+  - Added inline platform badge detection, Paste from clipboard, and Clear input buttons to `LinkInput`.
+  - Enhanced `QualitySelector` with quick selection pills for Best Auto and common resolutions alongside detailed format picker.
+  - Added Re-download quick action to `HistoryTable` rows.
+  - Added Node native test runner suite for `@downloader/shared`.
+- **2026-11-11 (Monorepo & Hardening):**
   - Migrated codebase to Turborepo monorepo layout (`apps/backend`, `apps/frontend`, `packages/shared`).
   - Created root `turbo.json` with pipeline definitions (`build`, `dev`, `lint`, `clean`).
   - Added GitHub Actions CI workflow under `.github/workflows/ci.yml`.

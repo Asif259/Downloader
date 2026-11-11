@@ -20,7 +20,7 @@ function formatDate(dateString) {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-export default function HistoryTable({ items, loading, error: historyError, onRefresh, onClear }) {
+export default function HistoryTable({ items, loading, error: historyError, onRefresh, onClear, onRedownload }) {
   return (
     <section className="glass-panel section">
       <div className="history-header">
@@ -59,12 +59,13 @@ export default function HistoryTable({ items, loading, error: historyError, onRe
               <th>Platform</th>
               <th>Status</th>
               <th>Created</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan={4} style={{ textAlign: "center", padding: "2rem" }}>
+                <td colSpan={5} style={{ textAlign: "center", padding: "2rem" }}>
                   <span style={{ color: "var(--text-muted)" }}>No download history yet</span>
                 </td>
               </tr>
@@ -79,6 +80,22 @@ export default function HistoryTable({ items, loading, error: historyError, onRe
                     <TableStatus status={item.status} />
                   </td>
                   <td>{formatDate(item.createdAt)}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ padding: "0.25rem 0.6rem", fontSize: "0.78rem", gap: "0.3rem" }}
+                      onClick={() => onRedownload?.(item.url)}
+                      title="Re-download this video"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                        <polyline points="7,10 12,15 17,10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                      Re-download
+                    </button>
+                  </td>
                 </tr>
               ))
             )}

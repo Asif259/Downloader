@@ -275,17 +275,14 @@ export default function Home() {
     setPreviewLoading(true);
 
     try {
-      const [previewPayload, formatsPayload] = await Promise.all([
-        postJSON(apiUrl("/api/detect"), { url: normalized }),
-        postJSON(apiUrl("/api/formats"), { url: normalized }),
-      ]);
+      const formatsPayload = await postJSON(apiUrl("/api/formats"), { url: normalized });
 
       if (analyzeRequestRef.current !== reqId) {
         return;
       }
 
       const basicFormats = pickBasicFormats(formatsPayload.formats || []);
-      setPreview(previewPayload);
+      setPreview(formatsPayload);
       setFormats(basicFormats);
       setSelectedFormat("best");
       toast({
@@ -399,6 +396,18 @@ export default function Home() {
     }
   }, [refresh]);
 
+  const handleRedownload = useCallback(
+    (historyUrl) => {
+      if (!historyUrl) return;
+      handleUrlChange(historyUrl);
+      void analyzeUrl(historyUrl);
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    },
+    [analyzeUrl, handleUrlChange],
+  );
+
   return (
     <main className="page-shell">
       <div className="page-grid">
@@ -446,6 +455,7 @@ export default function Home() {
           error={historyError}
           onRefresh={refresh}
           onClear={clearAll}
+          onRedownload={handleRedownload}
         />
       </div>
 

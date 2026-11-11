@@ -258,10 +258,26 @@ function parseProgressLine(line) {
   };
 }
 
+const metadataCache = new Map();
+const METADATA_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache
+
 export async function fetchMetadata(url) {
+  const cached = metadataCache.get(url);
+  if (cached && Date.now() - cached.timestamp < METADATA_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
   const cookieArgs = await getCookieArgs();
   const raw = await runYtDlp([...cookieArgs, "--dump-single-json", "--no-warnings", "--skip-download", url]);
-  return JSON.parse(raw);
+  const data = JSON.parse(raw);
+  metadataCache.set(url, { data, timestamp: Date.now() });
+
+  if (metadataCache.size > 200) {
+    const oldestKey = metadataCache.keys().next().value;
+    metadataCache.delete(oldestKey);
+  }
+
+  return data;
 }
 
 export async function fetchFormats(url) {
@@ -278,9 +294,13 @@ export async function fetchFormats(url) {
   }));
 
   return {
+    url,
     title: metadata.title,
     thumbnail: metadata.thumbnail,
     duration: metadata.duration,
+    uploader: metadata.uploader,
+    extractor: metadata.extractor,
+    webpageUrl: metadata.webpage_url || url,
     formats,
   };
 }

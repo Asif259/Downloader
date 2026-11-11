@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { applyCors, corsPreflight } from "@/lib/cors";
 import { fetchFormats } from "@/lib/downloader";
-import { normalizeUrl } from "@/lib/detector";
+import { detectPlatform, normalizeUrl } from "@/lib/detector";
 import { classifyBackendError } from "@/lib/errors";
 import { logRequest } from "@/lib/requestLog";
 
@@ -38,8 +38,9 @@ export async function POST(request) {
     }
 
     const data = await fetchFormats(normalizedUrl);
+    const platform = detectPlatform(normalizedUrl);
 
-    const response = applyCors(NextResponse.json(data));
+    const response = applyCors(NextResponse.json({ ...data, platform }));
     logRequest({ method: "POST", route: "/api/formats", status: 200, durationMs: Date.now() - startedAt });
     return response;
   } catch (error) {
