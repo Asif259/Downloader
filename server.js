@@ -41,3 +41,4 @@ child.on("exit", (code, signal) => {
 
 process.on("SIGTERM", () => child.kill("SIGTERM"));
 process.on("SIGINT", () => child.kill("SIGINT"));
+
