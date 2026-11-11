@@ -1,14 +1,25 @@
 import { spawn } from "node:child_process";
-import { chmodSync, existsSync } from "node:fs";
-import { access, mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
+import { chmodSync, existsSync, mkdirSync } from "node:fs";
+import { access, mkdir, readFile, readdir, rm, stat, unlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
 export const DOWNLOAD_DIR = process.env.DOWNLOAD_DIR || path.join(os.homedir(), "Downloads", "DownLink");
+export const DOWNLINK_TMP_DIR = process.env.DOWNLINK_TMP_DIR || path.join(os.homedir(), ".downlink_tmp");
+
+// Ensure custom temp directory exists and is used by PyInstaller / yt-dlp
+// Hostinger's system /tmp is mounted with noexec, preventing PyInstaller from mapping shared objects (libz.so)
+try {
+  mkdirSync(DOWNLINK_TMP_DIR, { recursive: true });
+} catch {}
+process.env.TMPDIR = DOWNLINK_TMP_DIR;
+process.env.TEMP = DOWNLINK_TMP_DIR;
+process.env.TMP = DOWNLINK_TMP_DIR;
+
 const EVICTION_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
 const SWEEP_INTERVAL_MS = 15 * 60 * 1000;  // 15 minutes
-const COOKIE_FILE_PATH = path.join(os.tmpdir(), "downlink-ytdlp-cookies.txt");
-const DECODED_COOKIE_FILE_PATH = path.join(os.tmpdir(), "downlink-ytdlp-cookies-decoded.txt");
+const COOKIE_FILE_PATH = path.join(DOWNLINK_TMP_DIR, "downlink-ytdlp-cookies.txt");
+const DECODED_COOKIE_FILE_PATH = path.join(DOWNLINK_TMP_DIR, "downlink-ytdlp-cookies-decoded.txt");
 const DEFAULT_COOKIE_FILES = [
   "/etc/secrets/youtube.cookies.txt",
   path.join(process.cwd(), "secrets", "youtube.cookies.txt"),
@@ -80,6 +91,23 @@ export async function sweepExpiredDownloads(maxAgeMs = EVICTION_MAX_AGE_MS) {
         // ignore individual file errors
       }
     }
+
+    // Also sweep stale PyInstaller temp folders (_MEIxxxxxx)
+    try {
+      const tmpEntries = await readdir(DOWNLINK_TMP_DIR, { withFileTypes: true });
+      for (const entry of tmpEntries) {
+        if (entry.name.startsWith("_MEI")) {
+          const fullPath = path.join(DOWNLINK_TMP_DIR, entry.name);
+          try {
+            const fileStat = await stat(fullPath);
+            if (now - fileStat.mtimeMs > maxAgeMs) {
+              await rm(fullPath, { recursive: true, force: true });
+            }
+          } catch {}
+        }
+      }
+    } catch {}
+
     return purgedCount;
   } catch {
     return 0;
@@ -185,7 +213,15 @@ async function pickNewest(files) {
 
 function runYtDlp(args) {
   return new Promise((resolve, reject) => {
-    const child = spawn(resolveYtDlpCommand(), args, { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(resolveYtDlpCommand(), args, {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        TMPDIR: DOWNLINK_TMP_DIR,
+        TEMP: DOWNLINK_TMP_DIR,
+        TMP: DOWNLINK_TMP_DIR,
+      },
+    });
 
     let stdout = "";
     let stderr = "";
@@ -376,7 +412,15 @@ export async function downloadWithProgress({ url, format, onProgress, signal }) 
 
     args.push(url);
 
-    const child = spawn(resolveYtDlpCommand(), args, { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(resolveYtDlpCommand(), args, {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        TMPDIR: DOWNLINK_TMP_DIR,
+        TEMP: DOWNLINK_TMP_DIR,
+        TMP: DOWNLINK_TMP_DIR,
+      },
+    });
     let wasAborted = false;
     let abortTimeout = null;
 

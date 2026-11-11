@@ -8,9 +8,19 @@
 
 import path from "node:path";
 import fs from "node:fs";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// PyInstaller temp directory fix for shared hosting (Hostinger mounts /tmp with noexec)
+const safeTmp = path.join(os.homedir(), ".downlink_tmp");
+try {
+  fs.mkdirSync(safeTmp, { recursive: true });
+} catch {}
+process.env.TMPDIR = safeTmp;
+process.env.TEMP = safeTmp;
+process.env.TMP = safeTmp;
 
 const candidatePaths = [
   path.resolve(__dirname, "apps/backend/.next/standalone/apps/backend/server.js"),

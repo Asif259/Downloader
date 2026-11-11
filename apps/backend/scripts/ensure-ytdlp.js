@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import https from "node:https";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -11,6 +12,15 @@ const BACKEND_ROOT = path.resolve(__dirname, "..");
 const BIN_DIR = path.join(BACKEND_ROOT, "bin");
 const BINARY_NAME = process.platform === "win32" ? "yt-dlp.exe" : "yt-dlp";
 const TARGET_PATH = path.join(BIN_DIR, BINARY_NAME);
+
+// Ensure PyInstaller does not use /tmp on Linux shared hosting (mounted with noexec)
+const SAFE_TMP = path.join(os.homedir(), ".downlink_tmp");
+try {
+  fs.mkdirSync(SAFE_TMP, { recursive: true });
+} catch {}
+process.env.TMPDIR = SAFE_TMP;
+process.env.TEMP = SAFE_TMP;
+process.env.TMP = SAFE_TMP;
 
 function checkSystemBinary() {
   try {
