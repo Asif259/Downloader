@@ -10,7 +10,7 @@
 
 | Total Tasks | Done | In Progress | Not Started | Blocked | Completion % |
 |---|---|---|---|---|---|
-| **28** | **23** | **2** | **3** | **0** | **82.1%** |
+| **28** | **25** | **1** | **2** | **0** | **89.3%** |
 
 - **Completed Milestones:**
   - Milestone 1: Workspace & Tooling Foundation (Turborepo + npm workspaces + GitHub Actions CI)
@@ -19,11 +19,11 @@
   - Milestone 4: Shared Libraries & Cross-App Validation (`@downloader/shared`)
   - Milestone 5: Frontend UI & Interactive Dashboard
   - Milestone 6: Streaming Delivery & Local History System
+  - Milestone 7 (Partial): Security SSRF Audit & Automatic Disk Eviction Cron
 - **Current Blockers:** None.
 - **Next Recommended Tasks:**
-  - TASK-24: Perform final end-to-end security & SSRF audit.
-  - TASK-25: Connect Render production deployment with secret cookie file.
-  - TASK-26: Connect Vercel frontend deployment with `NEXT_PUBLIC_API_BASE_URL`.
+  - TASK-26: Connect Render production deployment with secret cookie file.
+  - TASK-27: Connect Vercel frontend deployment with `NEXT_PUBLIC_API_BASE_URL`.
 
 ---
 
@@ -55,10 +55,10 @@
 | **TASK-22** | Auto-Trigger Client Save | Phase 6 | P0 | **Done** | TASK-21 | Prompts browser native save dialog |
 | **TASK-23** | Local History (`HistoryTable.jsx`) | Phase 6 | P0 | **Done** | None | LocalStorage history with re-download |
 | **TASK-24** | Cold-Start Detection & Warning | Phase 7 | P0 | **Done** | None | Non-blocking retry hints for sleeping backend |
-| **TASK-25** | End-to-End Security & SSRF Audit | Phase 7 | P0 | **In Progress** | None | Validate URL origins against private subnets |
+| **TASK-25** | End-to-End Security & SSRF Audit | Phase 7 | P0 | **Done** | None | Validate URL origins against private subnets |
 | **TASK-26** | Production Cookie Setup on Render | Phase 7 | P1 | **In Progress** | None | Mount secret cookie file for YouTube bypass |
 | **TASK-27** | Vercel Frontend Live Verification | Phase 7 | P0 | **Not Started** | TASK-26 | Verify production CORS and live downloads |
-| **TASK-28** | Automatic Disk Eviction Cron | Phase 7 | P1 | **Not Started** | None | 15-minute background sweep of `/tmp/unidl` |
+| **TASK-28** | Automatic Disk Eviction Cron | Phase 7 | P1 | **Done** | None | 15-minute background sweep of `/tmp/unidl` |
 
 ---
 
@@ -72,3 +72,4 @@
   - Hardened Dockerfile with conditional lockfile installation.
   - Verified 100% build and lint pass across all workspaces with `FULL TURBO` caching.
   - Established project-level documentation single source of truth in `/docs/`.
+

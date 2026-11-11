@@ -88,3 +88,4 @@ Every AI coding assistant working on DownLink MUST follow these rules before exe
 
 ### 4.5 CORS Security
 - `apps/backend` must strictly enforce CORS using the `CORS_ALLOW_ORIGIN` environment variable. Never configure `Access-Control-Allow-Origin: *` in production when handling authenticated sessions.
+

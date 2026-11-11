@@ -160,3 +160,4 @@ sequenceDiagram
 | **Error / Failure** | Red alert banner with actionable explanation and retry button | Click Retry or enter new URL |
 | **History Empty** | Subdued text: *"No recent downloads. Links you extract will appear here."* | N/A |
 | **History Populated** | Compact data table with platform icons, titles, dates, file sizes | Re-download or Clear History |
+

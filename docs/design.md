@@ -167,3 +167,4 @@ Borders: Subtle 1px translucent lines (rgba(255,255,255,0.05))
 Components to generate: Clean single-page dashboard with centered URL bar, live platform detector badges, video thumbnail preview card, quality tab selector (1080p, 720p, 480p, MP3 audio), real-time animated progress bars with speed/ETA readouts, and local history table.
 Strict Rules: No purple/violet gradients, no intrusive advertising widgets, no stock photo carousels.
 ```
+

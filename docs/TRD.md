@@ -283,3 +283,4 @@ When hosted on Render free tier, backend instances spin down after inactivity. T
 
 1. **Direct Streaming vs Buffering:** `GET /api/file/:taskId` creates a Node `fs.createReadStream` piped into the HTTP response. Memory overhead is bounded to chunk buffer sizes (`~64KB`), regardless of whether the file is 10MB or 4GB.
 2. **Process Throttling:** Concurrency limits on `spawn` calls ensure the backend does not exhaust CPU cores or saturate disk I/O when handling burst download requests.
+

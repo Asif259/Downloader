@@ -108,3 +108,4 @@ A task or feature is considered "Done" only when:
 3. **No Dead Ends:** Error, loading, empty, and success states are explicitly handled in the UI.
 4. **Security Verified:** No user input is passed directly to an unescaped shell execution.
 5. **Documentation Updated:** `tracker.md` is updated to reflect the completed state.
+

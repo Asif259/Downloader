@@ -1,9 +1,11 @@
 import { spawn } from "node:child_process";
-import { access, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
 const DOWNLOAD_DIR = process.env.DOWNLOAD_DIR || path.join(os.homedir(), "Downloads", "DownLink");
+const EVICTION_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
+const SWEEP_INTERVAL_MS = 15 * 60 * 1000;  // 15 minutes
 const COOKIE_FILE_PATH = path.join(os.tmpdir(), "downlink-ytdlp-cookies.txt");
 const DECODED_COOKIE_FILE_PATH = path.join(os.tmpdir(), "downlink-ytdlp-cookies-decoded.txt");
 const DEFAULT_COOKIE_FILES = [
@@ -11,6 +13,42 @@ const DEFAULT_COOKIE_FILES = [
   path.join(process.cwd(), "secrets", "youtube.cookies.txt"),
 ];
 let cookieArgsPromise = null;
+
+export async function sweepExpiredDownloads(maxAgeMs = EVICTION_MAX_AGE_MS) {
+  try {
+    const entries = await readdir(DOWNLOAD_DIR, { withFileTypes: true });
+    const now = Date.now();
+    let purgedCount = 0;
+
+    for (const entry of entries) {
+      if (!entry.isFile() || !isLikelyMediaFile(entry.name)) {
+        continue;
+      }
+      const fullPath = path.join(DOWNLOAD_DIR, entry.name);
+      try {
+        const fileStat = await stat(fullPath);
+        if (now - fileStat.mtimeMs > maxAgeMs) {
+          await unlink(fullPath);
+          purgedCount += 1;
+        }
+      } catch {
+        // ignore individual file errors
+      }
+    }
+    return purgedCount;
+  } catch {
+    return 0;
+  }
+}
+
+if (!globalThis.__downlink_sweep_timer__) {
+  globalThis.__downlink_sweep_timer__ = setInterval(() => {
+    sweepExpiredDownloads().catch(() => {});
+  }, SWEEP_INTERVAL_MS);
+  if (globalThis.__downlink_sweep_timer__.unref) {
+    globalThis.__downlink_sweep_timer__.unref();
+  }
+}
 
 function isNetscapeCookieText(text) {
   return typeof text === "string" && text.includes("Netscape HTTP Cookie File");

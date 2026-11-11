@@ -205,3 +205,4 @@ stateDiagram-v2
    ```
 2. **Orphan Cleanup Sweeper:** Every 15 minutes, an internal background cleaner scans `/tmp/unidl/`. Any file with `stat.mtimeMs < Date.now() - 30 * 60 * 1000` is unlinked.
 3. **Memory Task Pruning:** Completed or failed tasks in `globalThis.__downlink_tasks_store__` are automatically pruned from the Map after 1 hour to prevent memory bloat.
+
