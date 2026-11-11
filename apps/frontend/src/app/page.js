@@ -439,6 +439,7 @@ export default function Home() {
           <PreviewCard media={preview} loading={previewLoading} />
           <QualitySelector
             formats={formats}
+            allFormats={preview?.formats || []}
             value={selectedFormat}
             onChange={setSelectedFormat}
             onDownload={startSingleDownload}
