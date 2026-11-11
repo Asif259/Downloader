@@ -77,8 +77,8 @@ function downloadFile(url, dest) {
   });
 }
 
-console.log("\n📦 Bundling standalone Linux yt-dlp binary for Hostinger...");
-const LINUX_YTDLP_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp";
+console.log("\n📦 Bundling standalone Linux yt-dlp binary (PyInstaller ELF with bundled Python) for Hostinger...");
+const LINUX_YTDLP_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux";
 
 try {
   await downloadFile(LINUX_YTDLP_URL, targetYtDlp);

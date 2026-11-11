@@ -16,6 +16,8 @@ function checkSystemBinary() {
   try {
     const cmd = process.platform === "win32" ? "where yt-dlp" : "which yt-dlp";
     execSync(cmd, { stdio: "ignore" });
+    // Verify system binary actually runs and is compatible with current Python version
+    execSync("yt-dlp --version", { stdio: "ignore" });
     return true;
   } catch {
     return false;
@@ -29,8 +31,8 @@ function getDownloadUrl() {
   if (process.platform === "darwin") {
     return "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos";
   }
-  // Linux (Hostinger Web Apps runs on Linux x86_64)
-  return "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp";
+  // Linux (Hostinger Web Apps runs on Linux x86_64) - use standalone PyInstaller ELF with bundled Python 3.11+
+  return "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux";
 }
 
 function downloadBinary(url, destination) {
@@ -96,7 +98,10 @@ async function main() {
       console.log(`✓ Local standalone yt-dlp binary is verified at: ${TARGET_PATH}`);
       return;
     } catch {
-      console.log("Local binary found but failed verification. Re-downloading...");
+      console.log("Local binary found but failed verification (e.g. incompatible Python version). Re-downloading...");
+      try {
+        fs.unlinkSync(TARGET_PATH);
+      } catch {}
     }
   }
 
