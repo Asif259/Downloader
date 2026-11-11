@@ -39,4 +39,8 @@ process.env.PORT = String(port);
 process.chdir(path.dirname(standalonePath));
 
 // Directly import in the current process (no child process spawn) so Hostinger detects listen()
-await import("file://" + standalonePath);
+// Note: Do NOT use top-level await here because LiteSpeed (lsnode.js) loads this file via require()!
+import("file://" + standalonePath).catch((err) => {
+  console.error("❌ Failed to boot DownLink Standalone Backend:", err);
+  process.exit(1);
+});
