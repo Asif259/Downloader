@@ -150,3 +150,4 @@ try {
 console.log("\n============================================================");
 console.log("🚀 Hostinger Frontend Package is Ready for Deployment!");
 console.log("============================================================");
+

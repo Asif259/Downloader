@@ -12,5 +12,5 @@ services:
       - key: DOWNLOAD_DIR
         value: /tmp/unidl
       - key: CORS_ALLOW_ORIGIN
-        value: https://down-link.vercel.app
+        value: "*"
 

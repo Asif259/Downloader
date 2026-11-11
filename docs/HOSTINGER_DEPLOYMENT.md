@@ -1,53 +1,96 @@
 # 🚀 Hostinger Deployment Guide: DownLink Universal Downloader
 
-This guide details how to deploy **DownLink** using the recommended split-architecture:
-- **Frontend:** Hosted on **Hostinger Cloud / Web Hosting** (via hPanel Node.js application manager).
-- **Backend:** Containerized on a **VPS (Hostinger VPS or Cloud VPS)** running Docker (`yt-dlp` and `ffmpeg` engine).
-- **Communication:** Direct IP/port (`http://<VPS_IP>:10000`) for testing, with optional SSL subdomain setup.
+This guide details how to deploy **DownLink** with **$0 extra server cost** using your active **Hostinger Business Plan (Web Apps)**:
+- **Frontend:** Hosted on your **Hostinger Business Plan** via **Web Apps** (Node.js/Next.js) directly from GitHub or File Manager.
+- **Backend:** Hosted on **Render's Free Docker Tier** (or Koyeb / HuggingFace Spaces) where `yt-dlp` and `ffmpeg` run in a full container environment with zero subscription fees.
+- **Connection:** Hostinger Frontend calls the Render Backend via `NEXT_PUBLIC_API_BASE_URL=https://your-backend.onrender.com`.
 
 ---
 
-## 🏗️ Architecture Overview
+## 🏗️ Architecture Overview (Zero-Cost Setup)
 
 ```mermaid
 flowchart LR
-    User[End User Browser] -->|HTTP / HTTPS| Frontend[Hostinger Cloud / Web Hosting<br/>Node.js / hPanel]
-    Frontend -->|REST API Calls<br/>:10000| Backend[VPS Container<br/>Docker Compose<br/>yt-dlp + ffmpeg]
+    User[End User Browser] -->|HTTP / HTTPS| Frontend[Hostinger Web Apps<br/>Business Plan active to 2030<br/>Next.js Frontend]
+    Frontend -->|HTTPS API Requests| Backend[Render Free Docker Web Service<br/>yt-dlp + ffmpeg Container]
     Backend -->|Media Extraction| Platforms[YouTube / TikTok / Instagram / X]
 ```
 
 ---
 
-## 🛠️ Step 1: Deploy the Backend on your VPS
+## 🛠️ Step 1: Deploy the Backend on Render (100% Free Docker Tier)
 
-Because Hostinger Shared/Cloud Web Hosting does not permit installing OS-level binary tools (`ffmpeg` and `yt-dlp`), the backend runs in a hardened Docker container on your VPS.
+Because Hostinger Business Web Hosting is a sandboxed Node.js environment without root access or `ffmpeg` / `yt-dlp` system packages, your backend runs in a free container on Render.
 
-### 1.1 Connect to your VPS
-```bash
-ssh root@<YOUR_VPS_IP>
-```
+1. Go to [dashboard.render.com](https://dashboard.render.com/) (sign up for free with GitHub if you haven't).
+2. Click **New +** ➔ **Blueprint** (or **Web Service**).
+3. Connect your GitHub repository: `Downloader`.
+4. Render will automatically detect [`render.yaml`](file:///Users/ashrafulasif/My%20projects/Downloader/render.yaml) from your repository:
+   - **Environment:** Docker
+   - **Root Directory:** `apps/backend`
+   - **Plan:** Free
+   - **Healthcheck Path:** `/api/status`
+5. Click **Apply / Create Web Service**.
+6. Render builds the Docker image (with Node 20, Python 3, `yt-dlp`, and `ffmpeg`) and provisions a free HTTPS URL:
+   `https://downlink-backend-xxxx.onrender.com`
+7. Test the backend in your browser or terminal:
+   ```bash
+   curl https://downlink-backend-xxxx.onrender.com/api/status
+   ```
+   Expected response: `{"tasks":[]}`.
 
-### 1.2 Install Docker & Docker Compose (if not already installed)
-On Ubuntu / Debian:
-```bash
-apt update && apt install -y docker.io docker-compose-v2 curl
-systemctl enable --now docker
-```
+---
 
-### 1.3 Clone Repository & Start the Backend
-```bash
-# Clone repository
-git clone https://github.com/<YOUR_GITHUB_USERNAME>/Downloader.git
-cd Downloader
+## 📦 Step 2: Deploy Frontend on Hostinger Web Apps
 
-# Start backend container via Docker Compose
-docker compose up -d --build
-```
+You already have an active **Hostinger Business Plan** with **Web Apps** enabled (as seen in your hPanel dashboard).
 
-### 1.4 Allow Traffic Through Firewall
-Ensure port `10000` is open for incoming connections:
-```bash
-# UFW (Ubuntu/Debian)
+### Option A: Direct GitHub Deployment (Recommended)
+1. In your Hostinger hPanel, go to **Websites ➔ Web Apps**.
+2. Click **+ Create site** (top right button).
+3. Select **Node.js web app** ➔ choose **Import your Git repository**.
+4. Authorize and select your GitHub repository `Downloader` (branch: `main`).
+5. Configure the build parameters:
+   - **Framework:** `Next.js`
+   - **Node.js Version:** `20.x`
+   - **Build Command:** `npm run build:frontend`
+   - **Start Command:** `npm run start`
+6. Add Environment Variables:
+   - `NEXT_PUBLIC_API_BASE_URL` = `https://downlink-backend-xxxx.onrender.com` (your Render backend URL)
+   - `NODE_ENV` = `production`
+7. Click **Deploy**. Hostinger will build and assign you a live `*.hostingersite.com` address (or your custom domain) with free automated SSL.
+
+---
+
+### Option B: 1-Click Upload using `hostinger-frontend.zip`
+If you prefer manual upload instead of GitHub webhook:
+1. On your local machine, run:
+   ```bash
+   npm run package:hostinger -- --api-url=https://downlink-backend-xxxx.onrender.com
+   ```
+   *(This builds and compresses the standalone server into `hostinger-frontend.zip`).*
+2. In Hostinger hPanel, go to **Files ➔ File Manager** ➔ open `public_html/`.
+3. Upload and extract `hostinger-frontend.zip`.
+4. Go to **Websites ➔ Node.js**:
+   - **Application Root:** `public_html`
+   - **Application Startup File:** `server.js`
+   - **Node.js Version:** `20.x`
+5. Click **Save & Restart**.
+
+---
+
+## 🔒 Step 3: Configure CORS on Backend
+
+Once your Hostinger website is live (e.g. `https://downlink.hostingersite.com` or `https://yourdomain.com`):
+1. In your Render Dashboard ➔ select `downlink-backend` ➔ **Environment**.
+2. Set `CORS_ALLOW_ORIGIN` to your Hostinger frontend URL (e.g. `https://downlink.hostingersite.com`).
+3. Click **Save Changes**.
+
+---
+
+## 🖥️ Alternative: Deploying on a VPS (If you upgrade later)
+
+If you acquire a VPS in the future, you can run the entire backend container via Docker Compose:
 ufw allow 10000/tcp
 ufw status
 ```
@@ -145,3 +188,4 @@ This script automatically creates a production-ready archive at the root of the 
 
 ### 3. YouTube Download Restrictions
 - To enable authenticated YouTube downloads (prevent bot detection), place your exported `youtube.cookies.txt` into the `./secrets/` directory on your VPS. The Docker container mounts this directory automatically.
+
