@@ -26,6 +26,38 @@ const DEFAULT_COOKIE_FILES = [
 ];
 let cookieArgsPromise = null;
 
+// YouTube bot-detection bypass via alternate player clients.
+// "tv" (Smart TV client) and "web_creator" are signed APIs that bypass consent checks
+// without requiring cookies on most videos. Falls back to "default" if all else fails.
+// Override via env: YTDLP_YOUTUBE_PLAYER_CLIENT=tv,web_creator
+const DEFAULT_YT_PLAYER_CLIENT = "tv,web_creator,default";
+
+function getYouTubeExtractorArgs() {
+  const client = (process.env.YTDLP_YOUTUBE_PLAYER_CLIENT || DEFAULT_YT_PLAYER_CLIENT).trim();
+  const args = ["--extractor-arg", `youtube:player_client=${client}`];
+
+  // If a po_token is set (paired with visitor_data), add it for the first client
+  const poToken = process.env.YTDLP_PO_TOKEN?.trim();
+  const visitorData = process.env.YTDLP_VISITOR_DATA?.trim();
+  if (poToken && visitorData) {
+    // Format: po_token=PLAYER_CLIENT+TOKEN;visitor_data=DATA
+    const firstClient = client.split(",")[0].trim();
+    args.push("--extractor-arg", `youtube:po_token=${firstClient}+${poToken}`);
+    args.push("--extractor-arg", `youtube:visitor_data=${visitorData}`);
+  }
+
+  return args;
+}
+
+function isYouTubeUrl(url) {
+  try {
+    const { hostname } = new URL(url);
+    return /(?:^|\.)(?:youtube\.com|youtu\.be)$/.test(hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function resolveYtDlpCommand() {
   const binaryName = process.platform === "win32" ? "yt-dlp.exe" : "yt-dlp";
 
@@ -349,7 +381,8 @@ export async function fetchMetadata(url) {
   }
 
   const cookieArgs = await getCookieArgs();
-  const raw = await runYtDlp([...cookieArgs, "--dump-single-json", "--no-warnings", "--skip-download", url]);
+  const extractorArgs = isYouTubeUrl(url) ? getYouTubeExtractorArgs() : [];
+  const raw = await runYtDlp([...cookieArgs, ...extractorArgs, "--dump-single-json", "--no-warnings", "--skip-download", url]);
   const data = JSON.parse(raw);
   metadataCache.set(url, { data, timestamp: Date.now() });
 
@@ -390,10 +423,12 @@ export async function downloadWithProgress({ url, format, onProgress, signal }) 
   await mkdir(DOWNLOAD_DIR, { recursive: true });
   const filesBefore = new Set(await listFilesInDownloadDir());
   const cookieArgs = await getCookieArgs();
+  const extractorArgs = isYouTubeUrl(url) ? getYouTubeExtractorArgs() : [];
 
   return new Promise((resolve, reject) => {
     const args = [
       ...cookieArgs,
+      ...extractorArgs,
       "--newline",
       "--progress",
       "--no-playlist",
